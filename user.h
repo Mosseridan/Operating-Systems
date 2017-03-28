@@ -27,6 +27,8 @@ int uptime(void);
 // ulib.c
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);
+char* strncpy(char *s, const char *t, int n);
+char* safestrcpy(char *s, const char *t, int n);
 void *memmove(void*, void*, int);
 char* strchr(const char*, char c);
 int strcmp(const char*, const char*);
@@ -37,3 +39,4 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+int filelength(char* path);

@@ -7,8 +7,8 @@
 #include "x86.h"
 #include "elf.h"
 
-void 
-pseudo_main(int (*entry)(int, char**), int argc, char **argv) 
+void
+pseudo_main(int (*entry)(int, char**), int argc, char **argv)
 {
 }
 
@@ -64,7 +64,7 @@ exec(char *path, char **argv)
   end_op();
   ip = 0;
 
-  pointer_pseudo_main = sz;  
+  pointer_pseudo_main = sz;
 
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible.  Use the second as the user stack.
@@ -72,7 +72,7 @@ exec(char *path, char **argv)
   if((sz = allocuvm(pgdir, sz, sz + 3*PGSIZE)) == 0)
     goto bad;
   clearpteu(pgdir, (char*)(sz - 2*PGSIZE));
-  
+
   if (copyout(pgdir, pointer_pseudo_main, pseudo_main, (uint)exec - (uint)pseudo_main) < 0)
     goto bad;
 

@@ -13,6 +13,8 @@
 
 #define MAXARGS 10
 
+#define PATH "/path"
+
 struct cmd {
   int type;
 };
@@ -73,9 +75,49 @@ runcmd(struct cmd *cmd)
 
   case EXEC:
     ecmd = (struct execcmd*)cmd;
-    if(ecmd->argv[0] == 0)
+    if(ecmd->argv[0] == 0){
       exit();
-    exec(ecmd->argv[0], ecmd->argv);
+    }
+    else if(ecmd->argv[0][0] == '/'){ // given absolute path
+      exec(ecmd->argv[0], ecmd->argv);
+    }
+    else{
+      int fd, buf_len, pref_len, cmd_len;
+      char *buf, *path, *start, *end;
+
+      buf_len = filelength(PATH);
+      cmd_len = strlen(ecmd->argv[0]) + 1;
+      if (buf_len <= 0){
+        printf(2, "PATH not specified\nexec %s failed\n", ecmd->argv[0]);
+        break;
+      }
+      if((fd = open(PATH, O_RDONLY)) < 0){
+        printf(2, "error opening %s\nexec %s failed\n",PATH , ecmd->argv[0]);
+        break;
+      }
+      if((buf = malloc(buf_len)) == 0){
+        printf(2,"error allocating buf\nexec %s failed\n", ecmd->argv[0]);
+        close(fd);
+        break;
+      }
+      if(read(fd, buf, buf_len) != buf_len){
+        printf(2,"error reading buf\nexec %s failed\n", ecmd->argv[0]);
+        close(fd);
+        break;
+      }
+      close(fd);
+      start = buf;
+      while ((end = strchr(start , ':')) != 0){
+        pref_len = end - start;
+        path = malloc(cmd_len + pref_len);
+        strncpy(path, start, pref_len);
+        safestrcpy(path+pref_len, ecmd->argv[0], cmd_len);
+        //printf(1, "!! pref_len = %d buf_len = %d cmd_len = %d \npath = %s\nbuf = %s\nstart = %s\nend = %s\npath+pref_len = %s\npath+pref_len+1 = %s\n",pref_len,buf_len,cmd_len,path,buf,start,end,path+pref_len,path+pref_len+1);
+        exec(path, ecmd->argv);
+        start = end + 1;
+      }
+    }
+
     printf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
