@@ -13,14 +13,14 @@ diff -r f8a4e40ab1d6 fs.c
 +
 +  if(depth > 5)
 +    return 0;
- 
+
    if(*path == '/')
      ip = iget(ROOTDEV, 1);
 +  else if(root)
 +    ip = idup(root);
    else
      ip = idup(cp->cwd);
- 
+
 @@ -598,10 +604,24 @@ _namei(char *path, int parent, char *nam
        return ip;
      }
@@ -54,7 +54,7 @@ diff -r f8a4e40ab1d6 fs.c
 -  return _namei(path, 0, name);
 +  return _namei(0, path, 0, name, 0);
  }
- 
+
  struct inode*
  nameiparent(char *path, char *name)
  {
@@ -70,7 +70,7 @@ diff -r f8a4e40ab1d6 fs.h
  #define T_FILE 2   // File
  #define T_DEV  3   // Special device
 +#define T_SYMLINK 4  // Symlink
- 
+
  // Inodes per block.
  #define IPB           (BSIZE / sizeof(struct dinode))
 diff -r f8a4e40ab1d6 syscall.c
@@ -81,7 +81,7 @@ diff -r f8a4e40ab1d6 syscall.c
  extern int sys_wait(void);
  extern int sys_write(void);
 +extern int sys_symlink(void);
- 
+
  static int (*syscalls[])(void) = {
  [SYS_chdir]   sys_chdir,
 @@ -118,6 +119,7 @@ static int (*syscalls[])(void) = {
@@ -90,7 +90,7 @@ diff -r f8a4e40ab1d6 syscall.c
  [SYS_write]   sys_write,
 +[SYS_symlink]	sys_symlink,
  };
- 
+
  void
 diff -r f8a4e40ab1d6 syscall.h
 --- a/syscall.h	Thu Aug 30 14:32:06 2007 -0400
@@ -105,13 +105,13 @@ diff -r f8a4e40ab1d6 sysfile.c
 +++ b/sysfile.c	Thu Aug 30 13:10:31 2007 -0400
 @@ -257,6 +257,21 @@ create(char *path, int canexist, short t
  }
- 
+
  int
 +sys_symlink(void)
 +{
 +  char *old, *new;
 +  struct inode *ip;
-+  
++
 +  if(argstr(0, &old) < 0 || argstr(1, &new) < 0)
 +    return -1;
 +  if((ip = create(new, 0, T_SYMLINK, 0, 0)) == 0)
@@ -138,7 +138,7 @@ diff -r f8a4e40ab1d6 user.h
  char* sbrk(int);
  int sleep(int);
 +int symlink(int);
- 
+
  // ulib.c
  int stat(char*, struct stat*);
 diff -r f8a4e40ab1d6 usys.S
