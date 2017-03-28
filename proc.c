@@ -85,7 +85,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -184,13 +184,16 @@ fork(void)
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void
-exit(void)
+exit(int status)
 {
   struct proc *p;
   int fd;
 
   if(proc == initproc)
     panic("init exiting");
+
+  //update status;
+  proc->status = status;
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -229,7 +232,7 @@ exit(void)
 // Return -1 if this process has no children.
 int
 wait(void)
-{
+{ //TODO: CHANE SOMETHING HERE !??!
   struct proc *p;
   int havekids, pid;
 
