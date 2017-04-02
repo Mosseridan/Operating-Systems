@@ -10,6 +10,10 @@
 void
 pseudo_main(int (*entry)(int, char**), int argc, char **argv)
 {
+  entry(argc, argv);
+  // simulate calling exit(status) by pushing eax which is status (returned from the call to entry) and 1 which is argc,
+  // putting 2 which is SYS_exit in eax and delaring int 64 (interupt handler)
+  asm("pushl %eax; pushl $1; movl $2, %eax; int $64;");
 }
 
 int
@@ -82,19 +86,20 @@ exec(char *path, char **argv)
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
-    sp = (sp - (strlen(argv[argc]) + 1)) & ~3;
+    sp = (sp - (strlen(argv[argc]) + 1)) & ~4;
     if(copyout(pgdir, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
       goto bad;
-    ustack[3+argc] = sp;
+    ustack[4+argc] = sp;
   }
-  ustack[3+argc] = 0;
+  ustack[4+argc] = 0;
 
   ustack[0] = 0xffffffff;  // fake return PC
-  ustack[1] = argc;
-  ustack[2] = sp - (argc+1)*4;  // argv pointer
+  ustack[1] = elf.entry; // int (*entry)(int, char**)  the original functions entry point
+  ustack[2] = argc;
+  ustack[3] = sp - (argc+1)*4;  // argv pointer
 
-  sp -= (3+argc+1) * 4;
-  if(copyout(pgdir, sp, ustack, (3+argc+1)*4) < 0)
+  sp -= (4+argc+1) * 4;
+  if(copyout(pgdir, sp, ustack, (4+argc+1)*4) < 0)
     goto bad;
 
   // Save program name for debugging.
@@ -107,7 +112,7 @@ exec(char *path, char **argv)
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
-  proc->tf->eip = elf.entry;  // main
+  proc->tf->eip = pointer_pseudo_main; // pseudo_main wraper function istead if elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);
   freevm(oldpgdir);
