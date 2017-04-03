@@ -12,3 +12,7 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 
+// scheduler policy types
+#define POL_UNI     0   // uniform time distribution (task3.1)
+#define POL_PRT     1   // priority scheduling (task3.2)
+#define POL_DYN     2   // dynamic ticket allocation (task3.3)

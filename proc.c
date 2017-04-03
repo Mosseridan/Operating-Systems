@@ -15,10 +15,15 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int policy = 0;
+int total_ntickets = 1;
+uint rand = 2147483647;
+
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+uint prng();
 
 void
 pinit(void)
@@ -49,6 +54,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->status = 0;
 
   release(&ptable.lock);
 
@@ -173,6 +179,9 @@ fork(void)
 
   acquire(&ptable.lock);
 
+  if(policy == POL_DYN) set_ntickets(20, np);
+  else set_ntickets(10, np);
+
   np->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -223,6 +232,7 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
+  priority(0); // reset ntickets
   sched();
   panic("zombie exit");
 }
@@ -256,6 +266,7 @@ wait(int *status)
         p->state = UNUSED;
         if(status != 0) *status = p->status;
         p->status = 0;
+        set_ntickets(0,p);
         release(&ptable.lock);
         return pid;
       }
@@ -284,6 +295,8 @@ void
 scheduler(void)
 {
   struct proc *p;
+  uint ticket;
+  int ticket_count;
 
   for(;;){
     // Enable interrupts on this processor.
@@ -291,14 +304,20 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    ticket = prng();
+    ticket_count = 0;
+    //cprintf("in scheduler: ticket = %d\n",ticket);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      ticket_count += p->ntickets;
+      if(p->state != RUNNABLE || ticket_count - 1 < ticket)
         continue;
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       proc = p;
+      cprintf("int scheduler ticket =  %d !swithing to pid = %d , name = %s , state = %d\n",ticket ,proc->pid,proc->name,proc->state);
       switchuvm(p);
       p->state = RUNNING;
       swtch(&cpu->scheduler, p->context);
@@ -486,4 +505,36 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// generates pseudo random number
+uint
+prng()
+{
+   rand ^= rand << 13;
+	 rand ^= rand >> 17;
+	 rand ^= rand << 5;
+   return rand % total_ntickets ;
+}
+
+// sets the given process's (p) ntickets to to the given priority and updates the total ticket count in total_ntickets
+// this procedure should be called only after acquiring the ptable lock
+void
+set_ntickets(int priority , struct proc *p)
+{
+  if(!holding(&ptable.lock))
+    panic("priority ptable.lock");
+
+  total_ntickets = total_ntickets - p->ntickets + priority; // update total number of given tickets
+  p->ntickets = priority; // update current process's ntickets
+  return;
+}
+
+// sets the calling process's ntickets to to the given priority and updates the total ticket count in total_ntickets
+// this procedure should be called only after acquiring the ptable lock
+void
+priority(int priority)
+{
+  set_ntickets(priority, proc);
+  return;
 }
