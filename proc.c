@@ -16,7 +16,7 @@ static struct proc *initproc;
 
 int nextpid = 1;
 int policy = 0;
-int total_ntickets = 1;
+int total_ntickets = 0;
 uint rand = 2147483647;
 
 extern void forkret(void);
@@ -24,6 +24,8 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 uint prng();
+void assign_tickets(struct proc *p);
+void set_ntickets(int priority, struct proc *p);
 
 void
 pinit(void)
@@ -115,6 +117,7 @@ userinit(void)
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
+  assign_tickets(p); // assign initial tickets acording to current policy
   p->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -179,9 +182,7 @@ fork(void)
 
   acquire(&ptable.lock);
 
-  if(policy == POL_DYN) set_ntickets(20, np);
-  else set_ntickets(10, np);
-
+  assign_tickets(np); // assign tickets to the new process acording to the current policy
   np->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -231,8 +232,8 @@ exit(int status)
   }
 
   // Jump into the scheduler, never to return.
-  proc->state = ZOMBIE;
   priority(0); // reset ntickets
+  proc->state = ZOMBIE;
   sched();
   panic("zombie exit");
 }
@@ -309,8 +310,7 @@ scheduler(void)
     ticket_count = 0;
     //cprintf("in scheduler: ticket = %d\n",ticket);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      ticket_count += p->ntickets;
-      if(p->state != RUNNABLE || ticket_count - 1 < ticket)
+      if(p->state != RUNNABLE || (ticket_count += p->ntickets) - 1 < ticket)
         continue;
 
       // Switch to chosen process.  It is the process's job
@@ -319,6 +319,7 @@ scheduler(void)
       proc = p;
       cprintf("int scheduler ticket =  %d !swithing to pid = %d , name = %s , state = %d\n",ticket ,proc->pid,proc->name,proc->state);
       switchuvm(p);
+      total_ntickets -= p->ntickets; // exlude from total ticket count
       p->state = RUNNING;
       swtch(&cpu->scheduler, p->context);
       switchkvm();
@@ -362,6 +363,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  total_ntickets += proc->ntickets; // include in total ticket count
   proc->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -434,8 +436,11 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan){
+      total_ntickets += p->ntickets; // include in total ticket count
       p->state = RUNNABLE;
+    }
+
 }
 
 // Wake up all processes sleeping on chan.
@@ -460,8 +465,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING){
+        total_ntickets += p->ntickets; //include in total ticket count;
         p->state = RUNNABLE;
+      }
       release(&ptable.lock);
       return 0;
     }
@@ -514,7 +521,8 @@ prng()
    rand ^= rand << 13;
 	 rand ^= rand >> 17;
 	 rand ^= rand << 5;
-   return rand % total_ntickets ;
+   if(total_ntickets) return rand % total_ntickets ;
+   else return 0;
 }
 
 // sets the given process's (p) ntickets to to the given priority and updates the total ticket count in total_ntickets
@@ -536,5 +544,14 @@ void
 priority(int priority)
 {
   set_ntickets(priority, proc);
+  return;
+}
+
+// assigns initial ticets to process p acording to the current policy
+void
+assign_tickets(struct proc *p)
+{
+  if(policy == 2) set_ntickets(20,p);
+  else set_ntickets(10,p);
   return;
 }

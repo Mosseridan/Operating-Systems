@@ -116,7 +116,6 @@ void            userinit(void);
 int             wait(int*);
 void            wakeup(void*);
 void            yield(void);
-void            set_ntickets(int, struct proc*);
 void            priority(int);
 
 // swtch.S
