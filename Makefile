@@ -181,6 +181,9 @@ UPROGS=\
 	_zombie\
 	_hello\
 	_fib\
+	_sleepy\
+	_halflife\
+	_sanity\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

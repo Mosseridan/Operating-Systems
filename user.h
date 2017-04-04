@@ -1,10 +1,18 @@
 struct stat;
 struct rtcdate;
+struct perf {
+  int ctime;
+  int ttime;
+  int stime;
+  int retime;
+  int rutime;
+};
 
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int*);
+int wait_stat(int*, struct perf*);
 int pipe(int*);
 int write(int, void*, int);
 int read(int, void*, int);
@@ -23,6 +31,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int priority(int);
+int policy(int);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -11,5 +11,9 @@ fib(int n)
 int
 main(int argc, char *argv[])
 {
-	return fib(33);
+	for(int i=1; i<50; i++){
+			fib(25);
+			sleep(1);
+	}
+	return 0;
 }

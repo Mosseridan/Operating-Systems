@@ -1,0 +1,227 @@
+rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+*.o *.d *.asm *.sym vectors.S bootblock entryother \
+initcode initcode.out kernel xv6.img fs.img kernelmemfs mkfs \
+.gdbinit \
+_path _cat _echo _forktest _grep _init _kill _ln _ls _mkdir _rm _sh _stressfs _usertests _wc _zombie _hello _fib _sleepy _halflife _sanity 
+gcc -Werror -Wall -o mkfs mkfs.c
+echo "/:/bin/:" > _path
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o cat.o cat.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o ulib.o ulib.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o usys.o usys.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o printf.o printf.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o umalloc.o umalloc.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _cat cat.o ulib.o usys.o printf.o umalloc.o
+objdump -S _cat > cat.asm
+objdump -t _cat | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > cat.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o echo.o echo.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _echo echo.o ulib.o usys.o printf.o umalloc.o
+objdump -S _echo > echo.asm
+objdump -t _echo | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > echo.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o forktest.o forktest.c
+# forktest has less library code linked in - needs to be small
+# in order to be able to max out the proc table.
+ld -m    elf_i386 -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
+objdump -S _forktest > forktest.asm
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o grep.o grep.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _grep grep.o ulib.o usys.o printf.o umalloc.o
+objdump -S _grep > grep.asm
+objdump -t _grep | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > grep.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o init.o init.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _init init.o ulib.o usys.o printf.o umalloc.o
+objdump -S _init > init.asm
+objdump -t _init | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > init.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o kill.o kill.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _kill kill.o ulib.o usys.o printf.o umalloc.o
+objdump -S _kill > kill.asm
+objdump -t _kill | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kill.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o ln.o ln.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _ln ln.o ulib.o usys.o printf.o umalloc.o
+objdump -S _ln > ln.asm
+objdump -t _ln | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > ln.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o ls.o ls.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _ls ls.o ulib.o usys.o printf.o umalloc.o
+objdump -S _ls > ls.asm
+objdump -t _ls | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > ls.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o mkdir.o mkdir.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _mkdir mkdir.o ulib.o usys.o printf.o umalloc.o
+objdump -S _mkdir > mkdir.asm
+objdump -t _mkdir | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > mkdir.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o rm.o rm.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _rm rm.o ulib.o usys.o printf.o umalloc.o
+objdump -S _rm > rm.asm
+objdump -t _rm | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > rm.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sh.o sh.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _sh sh.o ulib.o usys.o printf.o umalloc.o
+objdump -S _sh > sh.asm
+objdump -t _sh | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > sh.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o stressfs.o stressfs.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _stressfs stressfs.o ulib.o usys.o printf.o umalloc.o
+objdump -S _stressfs > stressfs.asm
+objdump -t _stressfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > stressfs.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o usertests.o usertests.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _usertests usertests.o ulib.o usys.o printf.o umalloc.o
+objdump -S _usertests > usertests.asm
+objdump -t _usertests | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > usertests.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o wc.o wc.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _wc wc.o ulib.o usys.o printf.o umalloc.o
+objdump -S _wc > wc.asm
+objdump -t _wc | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > wc.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o zombie.o zombie.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _zombie zombie.o ulib.o usys.o printf.o umalloc.o
+objdump -S _zombie > zombie.asm
+objdump -t _zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > zombie.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o hello.o hello.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _hello hello.o ulib.o usys.o printf.o umalloc.o
+objdump -S _hello > hello.asm
+objdump -t _hello | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > hello.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o fib.o fib.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _fib fib.o ulib.o usys.o printf.o umalloc.o
+objdump -S _fib > fib.asm
+objdump -t _fib | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > fib.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sleepy.o sleepy.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _sleepy sleepy.o ulib.o usys.o printf.o umalloc.o
+objdump -S _sleepy > sleepy.asm
+objdump -t _sleepy | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > sleepy.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o halflife.o halflife.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _halflife halflife.o ulib.o usys.o printf.o umalloc.o
+objdump -S _halflife > halflife.asm
+objdump -t _halflife | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > halflife.sym
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sanity.o sanity.c
+ld -m    elf_i386 -N -e main -Ttext 0 -o _sanity sanity.o ulib.o usys.o printf.o umalloc.o
+objdump -S _sanity > sanity.asm
+objdump -t _sanity | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > sanity.sym
+./mkfs fs.img README _path _cat _echo _forktest _grep _init _kill _ln _ls _mkdir _rm _sh _stressfs _usertests _wc _zombie _hello _fib _sleepy _halflife _sanity 
+nmeta 59 (boot, super, log blocks 30 inode blocks 26, bitmap blocks 1) blocks 941 total 1000
+balloc: first 768 blocks have been allocated
+balloc: write bitmap block at sector 58
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector -fno-pic -O -nostdinc -I. -c bootmain.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector -fno-pic -nostdinc -I. -c bootasm.S
+ld -m    elf_i386 -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o bootmain.o
+objdump -S bootblock.o > bootblock.asm
+objcopy -S -O binary -j .text bootblock.o bootblock
+./sign.pl bootblock
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o bio.o bio.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o console.o console.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o exec.o exec.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o file.o file.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o fs.o fs.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o ide.o ide.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o ioapic.o ioapic.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o kalloc.o kalloc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o kbd.o kbd.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o lapic.o lapic.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o log.o log.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o main.o main.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o mp.o mp.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o picirq.o picirq.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o pipe.o pipe.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o proc.o proc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sleeplock.o sleeplock.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o spinlock.o spinlock.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o string.o string.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o swtch.o swtch.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o syscall.o syscall.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sysfile.o sysfile.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o sysproc.o sysproc.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o timer.o timer.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o trapasm.o trapasm.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o trap.o trap.c
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o uart.o uart.c
+perl vectors.pl > vectors.S
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o vectors.o vectors.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector   -c -o vm.o vm.c
+gcc -m32 -gdwarf-2 -Wa,-divide   -c -o entry.o entry.S
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector -fno-pic -nostdinc -I. -c entryother.S
+ld -m    elf_i386 -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
+objcopy -S -O binary -j .text bootblockother.o entryother
+objdump -S bootblockother.o > entryother.asm
+gcc -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer -fno-stack-protector -nostdinc -I. -c initcode.S
+ld -m    elf_i386 -N -e start -Ttext 0 -o initcode.out initcode.o
+objcopy -S -O binary initcode.out initcode
+objdump -S initcode.o > initcode.asm
+ld -m    elf_i386 -T kernel.ld -o kernel entry.o bio.o console.o exec.o file.o fs.o ide.o ioapic.o kalloc.o kbd.o lapic.o log.o main.o mp.o picirq.o pipe.o proc.o sleeplock.o spinlock.o string.o swtch.o syscall.o sysfile.o sysproc.o timer.o trapasm.o trap.o uart.o vectors.o vm.o  -b binary initcode entryother
+objdump -S kernel > kernel.asm
+objdump -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kernel.sym
+dd if=/dev/zero of=xv6.img count=10000
+dd if=bootblock of=xv6.img conv=notrunc
+dd if=kernel of=xv6.img seek=1 conv=notrunc
+qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512 
+xv6...
+cpu1: starting
+cpu0: starting
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$ sanity
+policy 0 CPU intensive 0: pid = 4
+policy 0 CPU intensive 1: pid = 5
+policy 0 CPU intensive 2: pid = 6
+policy 0 CPU intensive 3: pid = 7
+policy 0 I0 intensive 0: pid = 8
+policy 0 I0 intensive 1: pid = 9
+policy 0 I0 intensive 2: pid = 10
+policy 0 I0 intensive 3: pid = 11
+policy 0 MIXED 0: pid = 12
+policy 0 MIXED 1: pid = 13
+policy 0 MIXED 2: pid = 14
+policy 0 MIXED 3: pid = 15
+@ pid = 4 ,status = 6765, ctime = 360, ttime = 375, stime = 1, retime = 2, rutime = 12, tatime = 15
+@ pid = 5 ,status = 6765, ctime = 363, ttime = 374, stime = 10, retime = 1, rutime = 0, tatime = 11
+@ pid = 6 ,status = 6765, ctime = 364, ttime = 375, stime = 9, retime = 0, rutime = 2, tatime = 11
+@ pid = 7 ,status = 6765, ctime = 365, ttime = 379, stime = 8, retime = 4, rutime = 2, tatime = 14
+@ pid = 12 ,status = 0, ctime = 388, ttime = 460, stime = 49, retime = 11, rutime = 12, tatime = 72
+@ pid = 14 ,status = 0, ctime = 394, ttime = 470, stime = 54, retime = 13, rutime = 9, tatime = 76
+@ pid = 15 ,status = 0, ctime = 395, ttime = 472, stime = 60, retime = 16, rutime = 1, tatime = 77
+@ pid = 13 ,status = 0, ctime = 392, ttime = 477, stime = 64, retime = 16, rutime = 5, tatime = 85
+@ pid = 10 ,status = 0, ctime = 379, ttime = 511, stime = 105, retime = 26, rutime = 1, tatime = 132
+@ pid = 8 ,status = 0, ctime = 376, ttime = 513, stime = 99, retime = 25, rutime = 13, tatime = 137
+@ pid = 11 ,status = 0, ctime = 381, ttime = 513, stime = 106, retime = 26, rutime = 0, tatime = 132
+@ pid = 9 ,status = 0, ctime = 376, ttime = 515, stime = 107, retime = 30, rutime = 2, tatime = 139
+policy 1 CPU intensive 0: pid = 16
+policy 1 CPU intensive 1: pid = 17
+policy 1 CPU intensive 2: pid = 18
+policy 1 CPU intensive 3: pid = 19
+policy 1 I0 intensive 0: pid = 20
+policy 1 I0 intensive 1: pid = 21
+policy 1 I0 intensive 2: pid = 22
+policy 1 I0 intensive 3: pid = 23
+policy 1 MIXED 0: pid = 24
+policy 1 MIXED 1: pid = 25
+policy 1 MIXED 2: pid = 26
+policy 1 MIXED 3: pid = 27
+@ pid = 16 ,status = 6765, ctime = 517, ttime = 519, stime = 0, retime = 0, rutime = 2, tatime = 2
+@ pid = 17 ,status = 6765, ctime = 518, ttime = 520, stime = 1, retime = 0, rutime = 1, tatime = 2
+@ pid = 18 ,status = 6765, ctime = 520, ttime = 521, stime = 0, retime = 0, rutime = 1, tatime = 1
+@ pid = 19 ,status = 6765, ctime = 521, ttime = 529, stime = 0, retime = 3, rutime = 5, tatime = 8
+@ pid = 24 ,status = 0, ctime = 528, ttime = 589, stime = 49, retime = 11, rutime = 1, tatime = 61
+@ pid = 25 ,status = 0, ctime = 535, ttime = 594, stime = 49, retime = 9, rutime = 1, tatime = 59
+@ pid = 26 ,status = 0, ctime = 536, ttime = 595, stime = 49, retime = 8, rutime = 2, tatime = 59
+@ pid = 27 ,status = 0, ctime = 538, ttime = 597, stime = 49, retime = 8, rutime = 2, tatime = 59
+@ pid = 20 ,status = 0, ctime = 522, ttime = 643, stime = 99, retime = 22, rutime = 0, tatime = 121
+@ pid = 21 ,status = 0, ctime = 523, ttime = 643, stime = 99, retime = 20, rutime = 1, tatime = 120
+@ pid = 22 ,status = 0, ctime = 524, ttime = 644, stime = 99, retime = 19, rutime = 2, tatime = 120
+@ pid = 23 ,status = 0, ctime = 526, ttime = 646, stime = 99, retime = 21, rutime = 0, tatime = 120
+policy 2 CPU intensive 0: pid = 28
+policy 2 CPU intensive 1: pid = 29
+policy 2 CPU intensive 2: pid = 30
+policy 2 CPU intensive 3: pid = 31
+policy 2 I0 intensive 0: pid = 32
+policy 2 I0 intensive 1: pid = 33
+policy 2 I0 intensive 2: pid = 34
+policy 2 I0 intensive 3: pid = 35
+policy 2 MIXED 0: pid = 36
+policy 2 MIXED 1: pid = 37
+policy 2 MIXED 2: pid = 38
+policy 2 MIXED 3: pid = 39
+@ pid = 28 ,status = 6765, ctime = 649, ttime = 651, stime = 0, retime = 0, rutime = 2, tatime = 2
+@ pid = 29 ,status = 6765, ctime = 651, ttime = 651, stime = 0, retime = 0, rutime = 0, tatime = 0
+@ pid = 30 ,status = 6765, ctime = 652, ttime = 653, stime = 0, retime = 0, rutime = 1, tatime = 1
+@ pid = 31 ,status = 6765, ctime = 655, ttime = 660, stime = 0, retime = 2, rutime = 3, tatime = 5
+@ pid = 36 ,status = 0, ctime = 662, ttime = 727, stime = 49, retime = 13, rutime = 3, tatime = 65
+@ pid = 37 ,status = 0, ctime = 664, ttime = 728, stime = 50, retime = 13, rutime = 1, tatime = 64
+@ pid = 38 ,status = 0, ctime = 668, ttime = 730, stime = 49, retime = 12, rutime = 1, tatime = 62
+@ pid = 39 ,status = 0, ctime = 669, ttime = 731, stime = 49, retime = 12, rutime = 1, tatime = 62
+@ pid = 33 ,status = 0, ctime = 657, ttime = 782, stime = 99, retime = 25, rutime = 1, tatime = 125
+@ pid = 34 ,status = 0, ctime = 658, ttime = 784, stime = 99, retime = 26, rutime = 1, tatime = 126
+@ pid = 32 ,status = 0, ctime = 657, ttime = 785, stime = 100, retime = 27, rutime = 1, tatime = 128
+@ pid = 35 ,status = 0, ctime = 662, ttime = 789, stime = 99, retime = 26, rutime = 2, tatime = 127
+$ 

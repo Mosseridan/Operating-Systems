@@ -65,6 +65,11 @@ struct proc {
   char name[16];               // Process name (debugging)
   int status;                  // exit status
   int ntickets;                // number of tickets
+  int ctime;                   // creation time
+  int ttime;                   // termination time
+  int stime;                   // time spent sleeping
+  int retime;                  // time spent ready
+  int rutime;                  // time spent running
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -72,3 +77,11 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+struct perf {
+  int ctime;
+  int ttime;
+  int stime;
+  int retime;
+  int rutime;
+};

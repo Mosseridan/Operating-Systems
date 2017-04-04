@@ -56,7 +56,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->status = 0;
 
   release(&ptable.lock);
 
@@ -186,6 +185,7 @@ fork(void)
   assign_tickets(np); // assign tickets to the new process acording to the current policy
   total_ntickets += np->ntickets;
   np->state = RUNNABLE;
+  np->ctime = ticks;
 
   release(&ptable.lock);
 
@@ -236,14 +236,17 @@ exit(int status)
   // Jump into the scheduler, never to return.
   set_ntickets(0, proc); // reset ntickets
   proc->state = ZOMBIE;
+  proc->ttime = ticks;
+  //cprintf("!!in EXIT: ticks = %d ,pid = %d, state = %d, ctime = %d, ttime = %d, stime = %d, retime = %d, rutime = %d\n",ticks ,proc->pid , proc->state, proc->ctime, proc->ttime, proc->stime, proc->retime, proc->rutime);
   sched();
   panic("zombie exit");
 }
 
 // Wait for a child process to exit and return its pid.
+// also update status and preformance to be the exit status of the child process acordingly
 // Return -1 if this process has no children.
 int
-wait(int *status)
+wait_stat(int* status, struct perf *performance)
 {
   struct proc *p;
   int havekids, pid;
@@ -269,6 +272,19 @@ wait(int *status)
         p->state = UNUSED;
         if(status != 0) *status = p->status;
         p->status = 0;
+        p->ntickets = 0;
+        if(performance){
+          performance->ctime = p->ctime;
+          performance->ttime = p->ttime;
+          performance->stime = p->stime;
+          performance->retime = p->retime;
+          performance->rutime = p->rutime;
+        }
+        p->ctime = 0;
+        p->ttime = 0;
+        p->stime = 0;
+        p->retime = 0;
+        p->rutime = 0;
         release(&ptable.lock);
         return pid;
       }
@@ -283,6 +299,14 @@ wait(int *status)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
+}
+
+// Wait for a child process to exit and return its pid.
+// Return -1 if this process has no children.
+int
+wait(int *status)
+{
+  return wait_stat(status , 0);
 }
 
 //PAGEBREAK: 42
@@ -309,7 +333,7 @@ scheduler(void)
 
     ticket = prng() % max(1,total_ntickets);
     ticket_count = 0;
-    if(total_ntickets != 0) cprintf("in scheduler: ticket = %d total_ntickets = %d   ",ticket,total_ntickets);
+    //if(total_ntickets != 0) cprintf("in scheduler: ticket = %d total_ntickets = %d   ",ticket,total_ntickets);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE || (ticket_count += p->ntickets) - 1 < ticket)
         continue;
@@ -318,7 +342,7 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       proc = p;
-      cprintf(" !switching to pid = %d , name = %s , state = %d\n",proc->pid,proc->name,proc->state);
+      //cprintf(" !switching to pid = %d , name = %s , state = %d\n",proc->pid,proc->name,proc->state);
       switchuvm(p);
       total_ntickets -= p->ntickets; // exlude from total ticket count
       p->state = RUNNING;
@@ -592,4 +616,31 @@ min(int a, int b)
 {
   if(a < b) return a;
   else return b;
+}
+
+void
+update_times()
+{
+  struct proc *p;
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    switch(p->state){
+      case SLEEPING:
+        p->stime++;
+        break;
+      case RUNNABLE:
+        p->retime++;
+        break;
+      case RUNNING:
+        p->rutime++;
+        break;
+      default:
+        break;
+    }
+    //if(total_ntickets != 0 && p->pid != 0) cprintf("in update_times: ticks = %d ,pid = %d, state = %d, ctime = %d, ttime = %d, stime = %d, retime = %d, rutime = %d\n",ticks ,p->pid , p->state, p->ctime, p->ttime, p->stime, p->retime, p->rutime);
+  }
+  if (! has_lk) release(&ptable.lock);
+  return;
 }

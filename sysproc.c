@@ -114,3 +114,14 @@ sys_policy(void)
   policy(new_policy);
   return 0;
 }
+
+int
+sys_wait_stat(void)
+{
+  int *pstatus;
+  struct perf* pperformace;
+  argptr(0, (void*)&pstatus, sizeof(*pstatus));
+  argptr(1, (void*)&pperformace, sizeof(*pperformace));
+  return wait_stat(pstatus, pperformace);
+  return 0;
+}

@@ -1,10 +1,11 @@
 #include "types.h"
-#include "stat.h"
 #include "user.h"
 
 int
 main(int argc, char *argv[])
 {
-  printf(1,"Hello World!\n");
-  return (0);
+	for(int i=1;i<100;i++){
+		sleep(1);
+	}
+	return 0;
 }
