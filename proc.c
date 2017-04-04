@@ -309,7 +309,7 @@ scheduler(void)
 
     ticket = prng() % max(1,total_ntickets);
     ticket_count = 0;
-    //cprintf("in scheduler: ticket = %d\n",ticket);
+    if(total_ntickets != 0) cprintf("in scheduler: ticket = %d total_ntickets = %d   ",ticket,total_ntickets);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE || (ticket_count += p->ntickets) - 1 < ticket)
         continue;
@@ -318,7 +318,7 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       proc = p;
-      //cprintf("int scheduler ticket =  %d  , total_ntickets = %d !swithing to pid = %d , name = %s , state = %d\n",ticket,total_ntickets,proc->pid,proc->name,proc->state);
+      cprintf(" !switching to pid = %d , name = %s , state = %d\n",proc->pid,proc->name,proc->state);
       switchuvm(p);
       total_ntickets -= p->ntickets; // exlude from total ticket count
       p->state = RUNNING;
@@ -328,6 +328,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       proc = 0;
+      break; // draw new ticket
     }
     release(&ptable.lock);
 
