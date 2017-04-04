@@ -93,3 +93,24 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// sets the calling process's ntickets to to the given priority and updates the total ticket count in total_ntickets
+int
+sys_priority(void)
+{
+  int new_priority;
+  argint(0,&new_priority);
+  priority(new_priority);
+  return 0;
+}
+
+// change scheduling policy and update ticket distribution acordingly
+int
+sys_policy(void)
+{
+  int new_policy;
+  argint(0,&new_policy);
+  if (new_policy > 2 || new_policy < 0) return -1;
+  policy(new_policy);
+  return 0;
+}
