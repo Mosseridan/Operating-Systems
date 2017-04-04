@@ -66,7 +66,7 @@ main(int argc, char *argv[])
           exec("bin/fib", argv);
           exit(0);
       }
-      else printf(1,"policy %d CPU intensive %d: pid = %d\n",j,i,cpid);
+      else printf(1,"paralel policy %d CPU intensive %d: pid = %d\n",j,i,cpid);
     }
 
     // run I/O intensive paralel
@@ -75,7 +75,7 @@ main(int argc, char *argv[])
           exec("bin/sleepy", argv);
           exit(0);
       }
-      else printf(1,"policy %d I0 intensive %d: pid = %d\n",j,i,cpid);
+      else printf(1,"paralel policy %d I0 intensive %d: pid = %d\n",j,i,cpid);
     }
 
     // run mixed paralel
@@ -84,7 +84,7 @@ main(int argc, char *argv[])
           exec("bin/halflife", argv);
           exit(0);
       }
-      else printf(1,"policy %d MIXED %d: pid = %d\n",j,i,cpid);
+      else printf(1,"paralel policy %d MIXED %d: pid = %d\n",j,i,cpid);
     }
     printf(1,"\n");
 

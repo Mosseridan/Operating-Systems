@@ -1,0 +1,158 @@
+
+consecutive policy 0 CPU intensive 0: pid = 4
+consecutive policy 0 CPU intensive 1: pid = 5
+consecutive policy 0 CPU intensive 2: pid = 6
+consecutive policy 0 CPU intensive 3: pid = 7
+consecutive policy 0 I0 intensive 0: pid = 8
+consecutive policy 0 I0 intensive 1: pid = 9
+consecutive policy 0 I0 intensive 2: pid = 10
+consecutive policy 0 I0 intensive 3: pid = 11
+consecutive policy 0 MIXED 0: pid = 12
+consecutive policy 0 MIXED 1: pid = 13
+consecutive policy 0 MIXED 2: pid = 14
+consecutive policy 0 MIXED 3: pid = 15
+
+@ pid = 4 ,status = 3524578, ctime = 481, ttime = 659, stime = 1, retime = 1, rutime = 176, tatime = 178
+@ pid = 5 ,status = 3524578, ctime = 661, ttime = 807, stime = 0, retime = 58, rutime = 88, tatime = 146
+@ pid = 6 ,status = 3524578, ctime = 809, ttime = 940, stime = 0, retime = 47, rutime = 84, tatime = 131
+@ pid = 7 ,status = 3524578, ctime = 942, ttime = 1153, stime = 0, retime = 0, rutime = 211, tatime = 211
+@ pid = 8 ,status = 0, ctime = 1153, ttime = 1295, stime = 100, retime = 21, rutime = 21, tatime = 142
+@ pid = 9 ,status = 0, ctime = 1298, ttime = 1414, stime = 99, retime = 16, rutime = 1, tatime = 116
+@ pid = 10 ,status = 0, ctime = 1417, ttime = 1536, stime = 99, retime = 19, rutime = 1, tatime = 119
+@ pid = 11 ,status = 0, ctime = 1537, ttime = 1663, stime = 99, retime = 24, rutime = 3, tatime = 126
+@ pid = 12 ,status = 0, ctime = 1666, ttime = 1851, stime = 49, retime = 41, rutime = 95, tatime = 185
+@ pid = 13 ,status = 0, ctime = 1853, ttime = 2025, stime = 49, retime = 58, rutime = 65, tatime = 172
+@ pid = 14 ,status = 0, ctime = 2028, ttime = 2194, stime = 49, retime = 46, rutime = 71, tatime = 166
+@ pid = 15 ,status = 0, ctime = 2195, ttime = 2370, stime = 49, retime = 51, rutime = 75, tatime = 175
+
+policy 0 CPU intensive 0: pid = 16
+policy 0 CPU intensive 1: pid = 17
+policy 0 CPU intensive 2: pid = 18
+policy 0 CPU intensive 3: pid = 19
+policy 0 I0 intensive 0: pid = 20
+policy 0 I0 intensive 1: pid = 21
+policy 0 I0 intensive 2: pid = 22
+policy 0 I0 intensive 3: pid = 23
+policy 0 MIXED 0: pid = 24
+policy 0 MIXED 1: pid = 25
+policy 0 MIXED 2: pid = 26
+policy 0 MIXED 3: pid = 27
+
+@ pid = 16 ,status = 3524578, ctime = 2392, ttime = 2614, stime = 0, retime = 143, rutime = 79, tatime = 222
+@ pid = 17 ,status = 3524578, ctime = 2393, ttime = 2639, stime = 0, retime = 159, rutime = 87, tatime = 246
+@ pid = 19 ,status = 3524578, ctime = 2397, ttime = 2660, stime = 4, retime = 176, rutime = 83, tatime = 263
+@ pid = 20 ,status = 0, ctime = 2401, ttime = 2688, stime = 99, retime = 186, rutime = 2, tatime = 287
+@ pid = 18 ,status = 3524578, ctime = 2395, ttime = 2701, stime = 0, retime = 210, rutime = 96, tatime = 306
+@ pid = 22 ,status = 0, ctime = 2408, ttime = 2708, stime = 102, retime = 196, rutime = 2, tatime = 300
+@ pid = 23 ,status = 0, ctime = 2411, ttime = 2710, stime = 99, retime = 198, rutime = 2, tatime = 299
+@ pid = 26 ,status = 0, ctime = 2415, ttime = 2713, stime = 49, retime = 183, rutime = 66, tatime = 298
+@ pid = 21 ,status = 0, ctime = 2406, ttime = 2714, stime = 117, retime = 191, rutime = 0, tatime = 308
+@ pid = 27 ,status = 0, ctime = 2426, ttime = 2731, stime = 51, retime = 175, rutime = 79, tatime = 305
+@ pid = 24 ,status = 0, ctime = 2413, ttime = 2731, stime = 49, retime = 188, rutime = 81, tatime = 318
+@ pid = 25 ,status = 0, ctime = 2415, ttime = 2735, stime = 50, retime = 198, rutime = 72, tatime = 320
+
+consecutive policy 1 CPU intensive 0: pid = 28
+consecutive policy 1 CPU intensive 1: pid = 29
+consecutive policy 1 CPU intensive 2: pid = 30
+consecutive policy 1 CPU intensive 3: pid = 31
+consecutive policy 1 I0 intensive 0: pid = 32
+consecutive policy 1 I0 intensive 1: pid = 33
+consecutive policy 1 I0 intensive 2: pid = 34
+consecutive policy 1 I0 intensive 3: pid = 35
+consecutive policy 1 MIXED 0: pid = 36
+consecutive policy 1 MIXED 1: pid = 37
+consecutive policy 1 MIXED 2: pid = 38
+consecutive policy 1 MIXED 3: pid = 39
+
+@ pid = 28 ,status = 3524578, ctime = 2740, ttime = 2817, stime = 0, retime = 29, rutime = 48, tatime = 77
+@ pid = 29 ,status = 3524578, ctime = 2819, ttime = 2970, stime = 0, retime = 0, rutime = 151, tatime = 151
+@ pid = 30 ,status = 3524578, ctime = 2973, ttime = 3079, stime = 0, retime = 41, rutime = 65, tatime = 106
+@ pid = 31 ,status = 3524578, ctime = 3082, ttime = 3224, stime = 0, retime = 0, rutime = 142, tatime = 142
+@ pid = 32 ,status = 0, ctime = 3224, ttime = 3340, stime = 99, retime = 16, rutime = 1, tatime = 116
+@ pid = 33 ,status = 0, ctime = 3341, ttime = 3459, stime = 99, retime = 18, rutime = 1, tatime = 118
+@ pid = 34 ,status = 0, ctime = 3463, ttime = 3580, stime = 99, retime = 15, rutime = 3, tatime = 117
+@ pid = 35 ,status = 0, ctime = 3583, ttime = 3699, stime = 99, retime = 15, rutime = 2, tatime = 116
+@ pid = 36 ,status = 0, ctime = 3699, ttime = 3832, stime = 49, retime = 30, rutime = 54, tatime = 133
+@ pid = 37 ,status = 0, ctime = 3835, ttime = 3972, stime = 49, retime = 34, rutime = 54, tatime = 137
+@ pid = 38 ,status = 0, ctime = 3972, ttime = 4094, stime = 49, retime = 30, rutime = 43, tatime = 122
+@ pid = 39 ,status = 0, ctime = 4094, ttime = 4226, stime = 49, retime = 38, rutime = 45, tatime = 132
+
+policy 1 CPU intensive 0: pid = 40
+policy 1 CPU intensive 1: pid = 41
+policy 1 CPU intensive 2: pid = 42
+policy 1 CPU intensive 3: pid = 43
+policy 1 I0 intensive 0: pid = 44
+policy 1 I0 intensive 1: pid = 45
+policy 1 I0 intensive 2: pid = 46
+policy 1 I0 intensive 3: pid = 47
+policy 1 MIXED 0: pid = 48
+policy 1 MIXED 1: pid = 49
+policy 1 MIXED 2: pid = 50
+policy 1 MIXED 3: pid = 51
+
+@ pid = 41 ,status = 3524578, ctime = 4251, ttime = 4401, stime = 0, retime = 97, rutime = 53, tatime = 150
+@ pid = 40 ,status = 3524578, ctime = 4249, ttime = 4427, stime = 0, retime = 120, rutime = 58, tatime = 178
+@ pid = 42 ,status = 3524578, ctime = 4253, ttime = 4443, stime = 0, retime = 117, rutime = 73, tatime = 190
+@ pid = 43 ,status = 3524578, ctime = 4259, ttime = 4455, stime = 0, retime = 125, rutime = 71, tatime = 196
+@ pid = 44 ,status = 0, ctime = 4264, ttime = 4503, stime = 99, retime = 138, rutime = 2, tatime = 239
+@ pid = 46 ,status = 0, ctime = 4282, ttime = 4508, stime = 99, retime = 126, rutime = 1, tatime = 226
+@ pid = 45 ,status = 0, ctime = 4273, ttime = 4516, stime = 99, retime = 143, rutime = 1, tatime = 243
+@ pid = 47 ,status = 0, ctime = 4288, ttime = 4527, stime = 99, retime = 139, rutime = 1, tatime = 239
+@ pid = 50 ,status = 0, ctime = 4303, ttime = 4527, stime = 53, retime = 113, rutime = 58, tatime = 224
+@ pid = 48 ,status = 0, ctime = 4294, ttime = 4530, stime = 49, retime = 128, rutime = 59, tatime = 236
+@ pid = 51 ,status = 0, ctime = 4308, ttime = 4539, stime = 49, retime = 124, rutime = 58, tatime = 231
+@ pid = 49 ,status = 0, ctime = 4298, ttime = 4544, stime = 49, retime = 127, rutime = 70, tatime = 246
+
+consecutive policy 2 CPU intensive 0: pid = 52
+consecutive policy 2 CPU intensive 1: pid = 53
+consecutive policy 2 CPU intensive 2: pid = 54
+consecutive policy 2 CPU intensive 3: pid = 55
+consecutive policy 2 I0 intensive 0: pid = 56
+consecutive policy 2 I0 intensive 1: pid = 57
+consecutive policy 2 I0 intensive 2: pid = 58
+consecutive policy 2 I0 intensive 3: pid = 59
+consecutive policy 2 MIXED 0: pid = 60
+consecutive policy 2 MIXED 1: pid = 61
+consecutive policy 2 MIXED 2: pid = 62
+consecutive policy 2 MIXED 3: pid = 63
+
+@ pid = 52 ,status = 3524578, ctime = 4550, ttime = 4629, stime = 0, retime = 31, rutime = 48, tatime = 79
+@ pid = 53 ,status = 3524578, ctime = 4631, ttime = 4719, stime = 0, retime = 29, rutime = 59, tatime = 88
+@ pid = 54 ,status = 3524578, ctime = 4721, ttime = 4793, stime = 0, retime = 25, rutime = 47, tatime = 72
+@ pid = 55 ,status = 3524578, ctime = 4797, ttime = 4895, stime = 0, retime = 40, rutime = 58, tatime = 98
+@ pid = 56 ,status = 0, ctime = 4895, ttime = 5016, stime = 99, retime = 21, rutime = 1, tatime = 121
+@ pid = 57 ,status = 0, ctime = 5018, ttime = 5128, stime = 99, retime = 10, rutime = 1, tatime = 110
+@ pid = 58 ,status = 0, ctime = 5128, ttime = 5238, stime = 99, retime = 10, rutime = 1, tatime = 110
+@ pid = 59 ,status = 0, ctime = 5239, ttime = 5360, stime = 99, retime = 20, rutime = 2, tatime = 121
+@ pid = 60 ,status = 0, ctime = 5364, ttime = 5487, stime = 49, retime = 28, rutime = 46, tatime = 123
+@ pid = 61 ,status = 0, ctime = 5489, ttime = 5624, stime = 49, retime = 32, rutime = 54, tatime = 135
+@ pid = 62 ,status = 0, ctime = 5628, ttime = 5793, stime = 49, retime = 44, rutime = 72, tatime = 165
+@ pid = 63 ,status = 0, ctime = 5798, ttime = 5930, stime = 49, retime = 31, rutime = 52, tatime = 132
+
+policy 2 CPU intensive 0: pid = 64
+policy 2 CPU intensive 1: pid = 65
+policy 2 CPU intensive 2: pid = 66
+policy 2 CPU intensive 3: pid = 67
+policy 2 I0 intensive 0: pid = 68
+policy 2 I0 intensive 1: pid = 69
+policy 2 I0 intensive 2: pid = 70
+policy 2 I0 intensive 3: pid = 71
+policy 2 MIXED 0: pid = 72
+policy 2 MIXED 1: pid = 73
+policy 2 MIXED 2: pid = 74
+policy 2 MIXED 3: pid = 75
+
+@ pid = 73 ,status = 0, ctime = 5967, ttime = 6101, stime = 50, retime = 32, rutime = 52, tatime = 134
+@ pid = 70 ,status = 0, ctime = 5958, ttime = 6107, stime = 103, retime = 45, rutime = 1, tatime = 149
+@ pid = 69 ,status = 0, ctime = 5956, ttime = 6109, stime = 99, retime = 53, rutime = 1, tatime = 153
+@ pid = 68 ,status = 0, ctime = 5955, ttime = 6112, stime = 104, retime = 52, rutime = 1, tatime = 157
+@ pid = 72 ,status = 0, ctime = 5963, ttime = 6121, stime = 51, retime = 54, rutime = 53, tatime = 158
+@ pid = 75 ,status = 0, ctime = 5973, ttime = 6121, stime = 51, retime = 46, rutime = 51, tatime = 148
+@ pid = 71 ,status = 0, ctime = 5960, ttime = 6122, stime = 99, retime = 60, rutime = 3, tatime = 162
+@ pid = 74 ,status = 0, ctime = 5971, ttime = 6131, stime = 49, retime = 50, rutime = 61, tatime = 160
+@ pid = 67 ,status = 3524578, ctime = 5954, ttime = 6187, stime = 5, retime = 169, rutime = 59, tatime = 233
+@ pid = 64 ,status = 3524578, ctime = 5949, ttime = 6189, stime = 0, retime = 177, rutime = 63, tatime = 240
+@ pid = 65 ,status = 3524578, ctime = 5951, ttime = 6196, stime = 0, retime = 182, rutime = 63, tatime = 245
+@ pid = 66 ,status = 3524578, ctime = 5952, ttime = 6226, stime = 0, retime = 192, rutime = 82, tatime = 274
+
+$ 
