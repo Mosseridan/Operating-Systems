@@ -85,7 +85,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -102,6 +102,11 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
+
+  p->pending = 0;
+  // set default sig handlers
+  for(int sig = 0; sig < NUMSIG; sig++)
+    p->sighandlers[sig] = default_sig_handler;
 
   // this assignment to p->state lets other cores
   // run this process. the acquire forces the above
@@ -170,6 +175,10 @@ fork(void)
   safestrcpy(np->name, proc->name, sizeof(proc->name));
 
   pid = np->pid;
+
+  // copy parnt's sig handlers
+  for(int sig = 0; sig < NUMSIG; sig++)
+    np->sighandlers[sig] = proc->sighandlers[sig];
 
   acquire(&ptable.lock);
 
@@ -252,6 +261,9 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        p->pending = 0;
+        for(int sig = 0; sig < NUMSIG; sig++)
+          p->sighandlers[sig] = default_sig_handler;
         release(&ptable.lock);
         return pid;
       }
@@ -482,4 +494,33 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+
+void
+default_sig_handler(int signum){
+  int pid =0;
+  // simulate calling getpid(void) by pushing 0 which is argc,
+  // putting 18 which is SYS_getpid in eax and declaring int 64 (interupt handler)
+  // moving the result to pid
+  asm("pushl $0; movl $18, %%eax; int $64; movl %%eax, %0;"
+      :"=r"(pid) /* output to pid */
+      : /* no input registers */
+      :"%eax" /* clobbered register */
+    );
+  cprintf("A signal %d was accepted by %d\n",signum,pid);
+}
+
+/* TODO: this */
+sighandler_t
+signal(int signum, sighandler_t handler)
+{
+  return 0;
+}
+
+/* TODO: this */
+int
+sigsend(int pid, int signum)
+{
+  return 0;
 }
