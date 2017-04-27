@@ -90,6 +90,7 @@ sys_uptime(void)
   return xticks;
 }
 
+
 int
 sys_signal(void)
 {
@@ -101,7 +102,7 @@ sys_signal(void)
   return (int)signal(signum, handler);
 }
 
-// TODO: this
+
 int
 sys_sigsend(void)
 {

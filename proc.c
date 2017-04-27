@@ -20,6 +20,8 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+#define SIG_DFL 0;
+
 void
 pinit(void)
 {
@@ -106,7 +108,7 @@ userinit(void)
   p->pending = 0;
   // set default sig handlers
   for(int sig = 0; sig < NUMSIG; sig++)
-    p->sighandlers[sig] = default_sig_handler;
+    p->sighandlers[sig] = SIG_DFL;
 
   // this assignment to p->state lets other cores
   // run this process. the acquire forces the above
@@ -263,7 +265,7 @@ wait(void)
         p->state = UNUSED;
         p->pending = 0;
         for(int sig = 0; sig < NUMSIG; sig++)
-          p->sighandlers[sig] = default_sig_handler;
+          p->sighandlers[sig] = SIG_DFL;
         release(&ptable.lock);
         return pid;
       }
@@ -496,31 +498,53 @@ procdump(void)
   }
 }
 
-
+// TODO: default signal handler
 void
 default_sig_handler(int signum){
-  int pid =0;
-  // simulate calling getpid(void) by pushing 0 which is argc,
-  // putting 18 which is SYS_getpid in eax and declaring int 64 (interupt handler)
-  // moving the result to pid
-  asm("pushl $0; movl $18, %%eax; int $64; movl %%eax, %0;"
-      :"=r"(pid) /* output to pid */
-      : /* no input registers */
-      :"%eax" /* clobbered register */
-    );
-  cprintf("A signal %d was accepted by %d\n",signum,pid);
+  cprintf("A signal %d was accepted by %d\n",signum,proc->pid);
+  return;
 }
 
-/* TODO: this */
+// TODO: sets the signal handler "handler" for the signal "signum"
 sighandler_t
 signal(int signum, sighandler_t handler)
 {
-  return 0;
+  if(signum < 0 || signum >= NUMSIG)
+    return -1;
+  sighandler_t old_handler = sighandlers[signm];
+  sighandlers[signm] = handler;
+  return old_habdler;
 }
 
-/* TODO: this */
+// TODO: sends the signal "signum" to procees "pid"
 int
 sigsend(int pid, int signum)
 {
   return 0;
+}
+
+// TODO: handls all pending signals
+void
+do_signals()
+{
+ return;
+}
+
+// TODO: handles ths the given signal signum
+void handle_signal(int signum)
+{
+  return;
+}
+
+// TODO: sets up user stack frame for the call to the signal handler
+void handle_signal(int signum)
+{
+  return;
+}
+
+// TODO:(system call) retuen from a signal handler
+void
+sigreturn()
+{
+  return;
 }
