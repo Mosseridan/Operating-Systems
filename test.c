@@ -11,6 +11,7 @@ test(int sigNum){
 
 int
 main(int argc, char *argv[]){
+
 int j;
 printf(1,"------------------TestEx1----------------- \n");
 sighandler_t handler=(sighandler_t)test;
