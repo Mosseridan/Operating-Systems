@@ -21,7 +21,10 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 #define SIG_DFL 0;
-
+//2^0 up to 2^31 used to set pending signals
+int pows[NUMSIG] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,
+                    65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,
+                    33554432,67108864,134217728,268435456,536870912,1073741824,2147483648};
 void
 pinit(void)
 {
@@ -498,7 +501,7 @@ procdump(void)
   }
 }
 
-// TODO: default signal handler
+// TODO: default signal handler RETURN??
 void
 default_sig_handler(int signum){
   cprintf("A signal %d was accepted by %d\n",signum,proc->pid);
@@ -510,41 +513,104 @@ sighandler_t
 signal(int signum, sighandler_t handler)
 {
   if(signum < 0 || signum >= NUMSIG)
-    return -1;
-  sighandler_t old_handler = sighandlers[signm];
-  sighandlers[signm] = handler;
-  return old_habdler;
+    return (sighandler_t)(-1);
+  sighandler_t old_handler = proc->sighandlers[signum];
+  proc->sighandlers[signum] = handler;
+  return old_handler;
 }
 
 // TODO: sends the signal "signum" to procees "pid"
 int
 sigsend(int pid, int signum)
 {
+  struct proc *p;
+
+  if(signum < 0 || signum >= NUMSIG)
+    return -1;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->pending |= pows[signum];
+      return 0;
+    }
+  }
+  return -1;
+}
+
+// TODO:(system call) retuen from a signal handler
+int
+sigreturn()
+{
+  memmove(proc->tf,(void*)(proc->tf->esp),sizeof(struct trapframe)); // backup trapframe on user stack
   return 0;
+}
+
+// code copied to users stack in order to call sig_return upon signal handlers completion
+void
+pseudo_sigreturn()
+{
+  // simulate calling sigreturn() by pushing 0 which is argc,
+  // putting 24 which is SYS_sigreturn in eax and delaring int 64 (interupt handler)
+  asm("pushl $0; movl $24, %eax; int $64;");
+}
+
+// TODO: sets up user stack frame for the call to the signal handler
+void
+setup_frame(int signum)
+{
+  cprintf("in setup_frame: handling signal %d\n",signum);
+  uint sig_ret_size = (uint)setup_frame - (uint)pseudo_sigreturn;
+  void* user_sig_ret;
+
+  cprintf("in setup_frame: copying pseudo sigret\n");
+  // copy pseudo_sigreturn code to users stack in order to call sig_return upon signal handlers completion
+  proc->tf->esp -= sig_ret_size;
+  user_sig_ret = (void*)(proc->tf->esp);
+  memmove(user_sig_ret, pseudo_sigreturn, sig_ret_size);
+  cprintf("in setup_frame: copying trap frame\n");
+  // backup trapframe on user stack
+  proc->tf->esp -= sizeof(struct trapframe);
+  memmove((void*)(proc->tf->esp),proc->tf,sizeof(struct trapframe));
+  cprintf("in setup_frame: copying signum\n");
+  // push first argument to signal handler (signum)
+  proc->tf->esp -= sizeof(int);
+  *((int*)(proc->tf->esp)) = signum;
+  cprintf("in setup_frame: copying return addres\n");
+  //push return address to sig_return copy at user stack
+  proc->tf->esp -= sizeof(void*);
+  *((void**)(proc->tf->esp)) = user_sig_ret;
+  cprintf("in setup_frame: changing eip\n");
+  // change user eip so that user will run the signal handler next
+  proc->tf->eip = (uint)proc->sighandlers[signum];
+  cprintf("in setup_frame: starting handler\n");
+  return;
+}
+
+
+// TODO: handles ths the given signal signum
+void
+handle_signal(int signum)
+{
+  proc->pending ^=  pows[signum]; // remove signal signum for pending signals
+  if(proc->sighandlers[signum]){
+    //user signal handler
+    setup_frame(signum);
+  }
+  else default_sig_handler(signum);
+  return;
 }
 
 // TODO: handls all pending signals
 void
 do_signals()
 {
- return;
-}
+  if(proc == 0 || proc->pending == 0)
+    return;
 
-// TODO: handles ths the given signal signum
-void handle_signal(int signum)
-{
-  return;
-}
-
-// TODO: sets up user stack frame for the call to the signal handler
-void handle_signal(int signum)
-{
-  return;
-}
-
-// TODO:(system call) retuen from a signal handler
-void
-sigreturn()
-{
+  for(int signum=0; signum<NUMSIG; signum++){
+    if(proc->pending & pows[signum]){
+      handle_signal(signum);
+      return;
+    }
+  }
   return;
 }

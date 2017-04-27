@@ -116,9 +116,9 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-void            default_sig_handler(int);
 sighandler_t    signal(int, sighandler_t);
 int             sigsend(int, int);
+int             sigreturn(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

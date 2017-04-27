@@ -1,24 +1,28 @@
 #include "types.h"
-#include "stat.h"
 #include "user.h"
+#include "stat.h"
+typedef void (*sighandler_t)(int);
 
 void
-default_sig_handler(int signum){
-  int pid =0;
-  // simulate calling getpid(void) by pushing 0 which is argc,
-  // putting 18 which is SYS_getpid in eax and declaring int 64 (interupt handler)
-  // moving the result to pid
-  asm("pushl $0; movl $18, %%eax; int $64; movl %%eax, %0;"
-      :"=r"(pid) /* output to pid */
-      : /* no input registers */
-      :"%eax" /* clobbered register */
-    );
-  printf(1,"A signal %d was accepted by %d\n",signum,pid);
+test(int sigNum){
+ printf(1,"\n=======================Signal Handler===================================\n Process id:  %d  Signal number: %d \n\n", getpid(),sigNum);
 }
 
+
 int
-main(int argc, char *argv[])
-{
-  default_sig_handler(123);
-  return 0;
+main(int argc, char *argv[]){
+int j;
+printf(1,"------------------TestEx1----------------- \n");
+sighandler_t handler=(sighandler_t)test;
+for(int i=0;i<32;i++){
+ printf(1,"test  for1: i=%d\n",i);
+ signal(i,handler);
+}
+
+for(int j=0;j<32;j++){
+ sigsend(getpid(),j);
+}
+for(j=0; j<15; j++)
+	  sleep(1);
+exit();
 }
