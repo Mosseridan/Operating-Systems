@@ -19,11 +19,26 @@ for(int i=0;i<32;i++){
  printf(1,"test  for1: i=%d\n",i);
  signal(i,handler);
 }
-
+int cpid =0;
 for(int j=0;j<32;j++){
- sigsend(getpid(),j);
+  cpid = fork();
+  if(cpid){
+    sigsend(cpid,j);
+
+  }
+  else break;
 }
+
+if(cpid){
+  for(int k=0;k<32;k++)
+    wait();
+}
+
+
 for(j=0; j<15; j++)
 	  sleep(1);
+
+
+
 exit();
 }

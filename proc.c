@@ -531,9 +531,7 @@ sigsend(int pid, int signum)
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
-      cprintf("in sigsend: before setting pid = %d signum = %d pending = %d\n",proc->pid,signum,proc->pending);
       p->pending |= pows[signum];
-      cprintf("in sigsend: after setting pid = %d signum = %d pending = %d\n",proc->pid,signum,proc->pending);
       release(&ptable.lock);
       return 0;
     }
@@ -558,22 +556,9 @@ int
 sigreturn()
 {
   uint sig_ret_size = (uint)sigreturn - (uint)pseudo_sigreturn;
-  struct trapframe* tf = (struct trapframe*)(proc->tf->esp + sig_ret_size + 12);
-
-  cprintf("!!!in sigreturn: [%d] : %d, [%d] : %d, [%d] : %d, esp?: %d, eip?: %d\n"
-    ,proc->tf->esp, *((int*)(proc->tf->esp))
-    ,proc->tf->esp + sig_ret_size,*((int*)(proc->tf->esp + sig_ret_size))
-    ,proc->tf->esp + sig_ret_size + 12, *((int*)(proc->tf->esp + 12))
-    ,tf->esp
-    ,tf->eip);
-  cprintf("in sigreturn: before eip: %d, %d, esp: %d, %d\n"
-    ,proc->tf->eip, tf->eip
-    ,proc->tf->esp, tf->esp);
   if(memmove(proc->tf,(void*)(proc->tf->esp + sig_ret_size + 12),sizeof(struct trapframe)) < 0) // backup trapframe on user stack
-    {cprintf("FUCK!\n"); return -1;}
-  cprintf("in sigreturn: after memmove eip: %d, esp: %d\n"
-    ,proc->tf->eip, tf->eip
-    ,proc->tf->esp, tf->esp);
+    return -1;
+
   return 0;
 }
 
@@ -583,28 +568,27 @@ setup_frame(int signum)
 {
   uint sig_ret_size = (uint)sigreturn - (uint)pseudo_sigreturn;
   void* user_sig_ret;
-
+  uint user_esp = proc->tf->esp;
   // backup trapframe on user stack
-  proc->tf->esp -= sizeof(struct trapframe);
-  cprintf("in setup_frame: before eip: %d, %d, esp: %d, %d\n",proc->tf->eip,((struct trapframe*)(proc->tf->esp))->eip,proc->tf->esp,((struct trapframe*)(proc->tf->esp))->esp);
-  memmove((void*)(proc->tf->esp),proc->tf,sizeof(struct trapframe));
-  cprintf("in setup_frame: after eip: %d, %d, esp: %d, %d\n",proc->tf->eip,((struct trapframe*)(proc->tf->esp))->eip,proc->tf->esp,((struct trapframe*)(proc->tf->esp))->esp);
+  user_esp -= sizeof(struct trapframe);
+  memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
 
   // copy pseudo_sigreturn code to users stack in order to call sig_return upon signal handlers completion
-  proc->tf->esp -= sig_ret_size;
-  user_sig_ret = (void*)(proc->tf->esp);
+  user_esp -= sig_ret_size;
+  user_sig_ret = (void*)(user_esp);
   memmove(user_sig_ret, pseudo_sigreturn, sig_ret_size);
 
   // push first argument to signal handler (signum)
-  proc->tf->esp -= sizeof(int);
-  *((int*)(proc->tf->esp)) = signum;
+  user_esp -= sizeof(int);
+  *((int*)(user_esp)) = signum;
 
   //push return address to sig_return copy at user stack
-  proc->tf->esp -= sizeof(void*);
-  *((void**)(proc->tf->esp)) = user_sig_ret;
+  user_esp -= sizeof(void*);
+  *((void**)(user_esp)) = user_sig_ret;
 
   // change user eip so that user will run the signal handler next
   proc->tf->eip = (uint)proc->sighandlers[signum];
+  proc->tf->esp = user_esp;
   return;
 }
 
@@ -613,11 +597,9 @@ setup_frame(int signum)
 void
 handle_signal(int signum)
 {
-  cprintf("in handle_signal: before reset pid = %d signum = %d pending = %d\n",proc->pid,signum,proc->pending);
   acquire(&ptable.lock);
   proc->pending ^=  pows[signum]; // remove signal signum for pending signals
   release(&ptable.lock);
-  cprintf("in handle_signal: after reset pid = %d signum = %d pending = %d\n",proc->pid,signum,proc->pending);
   if(proc->sighandlers[signum]){
     //user signal handler
     setup_frame(signum);
@@ -630,6 +612,7 @@ handle_signal(int signum)
 void
 do_signals()
 {
+
   if(proc == 0 || proc->pending == 0)
     return;
 
