@@ -1,6 +1,7 @@
 #include "types.h"
 #include "user.h"
 #include "stat.h"
+#include "uthread.h"
 typedef void (*sighandler_t)(int);
 
 void
@@ -11,6 +12,8 @@ test(int sigNum){
 
 int
 main(int argc, char *argv[]){
+
+uthread_init();
 
 // int j;
 // printf(1,"------------------TestEx1----------------- \n");
