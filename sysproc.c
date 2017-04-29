@@ -118,3 +118,12 @@ sys_sigreturn(void)
 {
   return sigreturn();
 }
+
+int
+sys_alarm(void)
+{
+  int time;
+  if(argint(0, &time) < 0)
+    return -1;
+  return alarm(time);
+}

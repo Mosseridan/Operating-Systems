@@ -65,6 +65,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   int pending;                 // currently unhandled (pending) signals
   void* sighandlers[NUMSIG];   // pointers to signal handlers.
+  uint alarm;                  // time to be alarmed (0 if no alarms needed)
 };
 
 // Process memory is laid out contiguously, low addresses first:

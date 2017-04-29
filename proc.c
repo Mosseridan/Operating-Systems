@@ -269,6 +269,7 @@ wait(void)
         p->pending = 0;
         for(int sig = 0; sig < NUMSIG; sig++)
           p->sighandlers[sig] = SIG_DFL;
+        p->alarm = 0;
         release(&ptable.lock);
         return pid;
       }
@@ -501,25 +502,28 @@ procdump(void)
   }
 }
 
-// TODO: default signal handler RETURN??
+// default signal handler RETURN??
 void
 default_sig_handler(int signum){
   cprintf("A signal %d was accepted by %d\n",signum,proc->pid);
   return;
 }
 
-// TODO: sets the signal handler "handler" for the signal "signum"
+// sets the signal handler "handler" for the signal "signum"
 sighandler_t
 signal(int signum, sighandler_t handler)
 {
   if(signum < 0 || signum >= NUMSIG)
     return (sighandler_t)(-1);
   sighandler_t old_handler = proc->sighandlers[signum];
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
   proc->sighandlers[signum] = handler;
+  if (! has_lk) release(&ptable.lock);
   return old_handler;
 }
 
-// TODO: sends the signal "signum" to procees "pid"
+// sends the signal "signum" to procees "pid"
 int
 sigsend(int pid, int signum)
 {
@@ -528,15 +532,16 @@ sigsend(int pid, int signum)
   if(signum < 0 || signum >= NUMSIG)
     return -1;
 
-  acquire(&ptable.lock);
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->pending |= pows[signum];
-      release(&ptable.lock);
+      if (! has_lk) release(&ptable.lock);
       return 0;
     }
   }
-  release(&ptable.lock);
+  if (! has_lk) release(&ptable.lock);
   return -1;
 }
 
@@ -551,18 +556,22 @@ pseudo_sigreturn()
   asm("pushl $0; movl $24, %eax; int $64;");
 }
 
-// TODO:(system call) retuen from a signal handler
+// (system call) retuen from a signal handler
 int
 sigreturn()
 {
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
   uint sig_ret_size = (uint)sigreturn - (uint)pseudo_sigreturn;
-  if(memmove(proc->tf,(void*)(proc->tf->esp + sig_ret_size + 12),sizeof(struct trapframe)) < 0) // backup trapframe on user stack
+  if(memmove(proc->tf,(void*)(proc->tf->esp + sig_ret_size + 12),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
+    if (! has_lk) release(&ptable.lock);
     return -1;
-
+  }
+  if (! has_lk) release(&ptable.lock);
   return 0;
 }
 
-// TODO: sets up user stack frame for the call to the signal handler
+// sets up user stack frame for the call to the signal handler
 void
 setup_frame(int signum)
 {
@@ -586,20 +595,26 @@ setup_frame(int signum)
   user_esp -= sizeof(void*);
   *((void**)(user_esp)) = user_sig_ret;
 
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
   // change user eip so that user will run the signal handler next
   proc->tf->eip = (uint)proc->sighandlers[signum];
   proc->tf->esp = user_esp;
+  if (! has_lk) release(&ptable.lock);
+
   return;
 }
 
 
-// TODO: handles ths the given signal signum
+// handles ths the given signal signum
 void
 handle_signal(int signum)
 {
-  acquire(&ptable.lock);
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
   proc->pending ^=  pows[signum]; // remove signal signum for pending signals
-  release(&ptable.lock);
+  if (! has_lk) release(&ptable.lock);
+
   if(proc->sighandlers[signum]){
     //user signal handler
     setup_frame(signum);
@@ -608,7 +623,7 @@ handle_signal(int signum)
   return;
 }
 
-// TODO: handls all pending signals
+// handls all pending signals
 void
 do_signals()
 {
@@ -622,5 +637,33 @@ do_signals()
       return;
     }
   }
+  return;
+}
+
+// set alarms
+int
+alarm(int time)
+{
+  if(time)
+    return (proc->alarm = ticks+time);
+  else
+    return (proc->alarm = 0);
+}
+
+
+// handls alarms
+void
+handle_alarms()
+{
+  struct proc *p;
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if (p->alarm > 0 && p->alarm <= ticks)
+      sigsend(p->pid,SIGALRM);
+  }
+
+  if (! has_lk) release(&ptable.lock);
   return;
 }
