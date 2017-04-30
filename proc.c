@@ -560,10 +560,10 @@ pseudo_sigreturn()
 int
 sigreturn()
 {
+
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
-  uint sig_ret_size = (uint)sigreturn - (uint)pseudo_sigreturn;
-  if(memmove(proc->tf,(void*)(proc->tf->esp + sig_ret_size + 12),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
+  if(memmove(proc->tf,(void*)(proc->tf->esp + 12),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
     if (! has_lk) release(&ptable.lock);
     return -1;
   }
@@ -578,14 +578,15 @@ setup_frame(int signum)
   uint sig_ret_size = (uint)sigreturn - (uint)pseudo_sigreturn;
   void* user_sig_ret;
   uint user_esp = proc->tf->esp;
-  // backup trapframe on user stack
-  user_esp -= sizeof(struct trapframe);
-  memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
 
   // copy pseudo_sigreturn code to users stack in order to call sig_return upon signal handlers completion
   user_esp -= sig_ret_size;
   user_sig_ret = (void*)(user_esp);
   memmove(user_sig_ret, pseudo_sigreturn, sig_ret_size);
+
+  // backup trapframe on user stack
+  user_esp -= sizeof(struct trapframe);
+  memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
 
   // push first argument to signal handler (signum)
   user_esp -= sizeof(int);
