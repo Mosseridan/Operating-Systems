@@ -3,14 +3,15 @@ enum tstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct uthread {
   uint tid;   //thread id
   struct uttable* uttable;
-  //char* esp; //thread stack pointer
+  uint esp; //thread stack pointer
+  uint ebp;
   //uint eip; //thread instruction pointer
   enum tstate state; //thread state (UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE)
   struct trapframe* tf; //a pointer to the trapframe backed up on the user stack
   uint pid; //the pid of the process running this thread
 };
 
-//uthread.c
+//uthread.cei
 int uthread_init(void);
 int uthread_create(void (*) (void*), void*);
 void uthread_schedule(void);

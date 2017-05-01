@@ -15,8 +15,8 @@ main(int argc, char *argv[]){
 
 printf(1,"------------------TestEx1----------------- \n");
 uthread_init();
-for(int i = 0; i <10;i++){
-  sleep(10);
+for(int i = 0; i <10000;i++){
+  sleep(1);
   //printf(1,"tid: %d, i: %d\n",uthread_self(),i);
 }
 exit();
