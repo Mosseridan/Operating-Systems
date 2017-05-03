@@ -560,14 +560,14 @@ pseudo_sigreturn()
 int
 sigreturn()
 {
-
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
-  if(memmove(proc->tf,(void*)(proc->tf->esp + 12),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
+  if(memmove(proc->tf,(void*)(proc->tf->ebp + 8),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
     if (! has_lk) release(&ptable.lock);
     return -1;
   }
   if (! has_lk) release(&ptable.lock);
+  cprintf("in sigreturn: proc->tf->esp + 12: %x , proc->tf->ebp + 8: %x\n", proc->tf->esp + 12, proc->tf->ebp+8);
   return 0;
 }
 
@@ -587,6 +587,7 @@ setup_frame(int signum)
   // backup trapframe on user stack
   user_esp -= sizeof(struct trapframe);
   memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
+  cprintf("in setup_frame: user_esp: %x\n", user_esp);
 
   // push first argument to signal handler (signum)
   user_esp -= sizeof(int);
@@ -600,6 +601,7 @@ setup_frame(int signum)
   if (!has_lk) acquire(&ptable.lock);
   // change user eip so that user will run the signal handler next
   proc->tf->eip = (uint)proc->sighandlers[signum];
+  proc->tf->ebp = user_esp;
   proc->tf->esp = user_esp;
   if (! has_lk) release(&ptable.lock);
 
@@ -628,8 +630,7 @@ handle_signal(int signum)
 void
 do_signals()
 {
-
-  if(proc == 0 || proc->pending == 0)
+  if(proc == 0 || proc->pending == 0 || proc->tf->cs == 8)
     return;
 
   for(int signum=0; signum<NUMSIG; signum++){
@@ -651,7 +652,6 @@ alarm(int time)
     return (proc->alarm = 0);
 }
 
-
 // handls alarms
 void
 handle_alarms()
@@ -661,8 +661,10 @@ handle_alarms()
   if (!has_lk) acquire(&ptable.lock);
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if (p->alarm > 0 && p->alarm <= ticks)
+    if (p->alarm > 0 && p->alarm <= ticks){
+      p->alarm = 0;
       sigsend(p->pid,SIGALRM);
+    }
   }
 
   if (! has_lk) release(&ptable.lock);

@@ -1,7 +1,5 @@
-#include "types.h"
-#include "user.h"
-#include "x86.h"
 #include "uthread.h"
+#include "user.h"
 #include "param.h"
 
 uint nexttid = 1;
@@ -12,7 +10,7 @@ void
 uthread_schedule_wrapper(int signum){
   uthread_schedule();//TODO: WTF?
 }
-//
+
 // static struct uthread*
 // allocuthread()
 // {
@@ -64,74 +62,119 @@ uthread_init()
   return ut->tid;
 }
 
-int uthread_create(void (*start_func)(void*), void* arg)
+int
+uthread_create(void (*start_func)(void*), void* arg)
 {
-  // struct uthread* nt = allocuthread();
-  // if(!nt)
-  //   return -1;
-  //
-  // uint sp = nt->tf->esp;
-  // // push arg
-  // sp -= 4;
-  // *(void**)sp = arg;
-  // // push argc
-  // sp -= 4;
-  // *(int*)sp = 1;
-  // // push return address to thread_exit
-  // sp -= 4;
-  // *(void**)sp = uthread_exit;
-  //
-  // // reset threads esp in tf
-  // nt->tf->esp = sp;
-  // // set threads eip to start_func
-  // nt->tf->eip = (uint)start_func;
-  // //nt->eip = start_func; TODO: remove?
-  //
-  // return nt->tid;
-return 0;
+  //printf(1, "in uthread_create\n");
+  struct uthread *ut;
+  uint sp;
+
+  for(ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
+    if(ut->state == UNUSED)
+      goto found;
+  }
+  return -1;
+
+  found:
+    ut->tid = nexttid++;
+    ut->pid = getpid();
+    //ut->tf = current->tf;
+
+    // Allocate thread stack.
+    if((ut->tf.ss = (uint)malloc(TSTACKSIZE)) == 0){
+      ut->state = UNUSED;
+      return -1;
+    }
+
+
+
+    sp = ut->tf.ss + TSTACKSIZE;
+    printf(1,"in uthread_create: current->tid: %d, ut->tid: %d, ut->tf.ss: %x, sp: %x\n",current->tid, ut->tid,ut->tf.ss,sp);
+    // Leave room for trap frame.
+    // sp -= sizeof *ut->tf;
+    // ut->tf = (struct trapframe*)sp;
+    // memmove(ut->tf ,current->tf,sizeof(struct trapframe));
+
+    // printf(1,"current->tf: %x\n",current->tf);
+
+
+
+    // push arg
+    sp -= 4;
+    *(void**)sp = arg;
+    //printf(1,"in uthread_create 2: current->tid: %d,  ut->tid: %d, sp: %x\n",current->tid, ut->tid, sp);
+    // push argc
+    // sp -= 4;
+    // *(int*)sp = 1;
+    // push return address to thread_exit
+    sp -= 4;
+    *(void**)sp = uthread_exit;
+    //printf(1,"in uthread_create 3: current->tid: %d, ut->tid: %d, sp: %x\n",current->tid,ut->tid,sp);
+    // initialize thread stack pointers
+    //ut->ebp = sp;
+    ut->tf.ebp = sp;
+    //ut->esp = sp;
+    ut->tf.esp = sp;
+
+    // set threads eip to start_func
+    ut->tf.eip = (uint)start_func;
+    ut->state = RUNNABLE;
+    printf(1,"in uthread_create 4: current->tid: %d, ut->tid: %d, ut->tf.ebp: %x, ut->tf.esp: %x, ut->tf.eip %x \n",current->tid,ut->tid,ut->tf.ebp, ut->tf.esp,ut->tf.eip, sp);
+    return ut->tid;
 }
 
-void uthread_schedule()
+void
+uthread_schedule()
 {
+  // printf(1, "in uthread_schedule\n");
+
+  uint tf;
   struct uthread *ut = current;
 
-  uint temp;
-  asm("movl %%esp, %0;" :"=r"(temp) : :);
-  ut->tf = (struct trapframe*)(temp + 12);
-  ut->esp = temp;
-  asm("movl %%ebp, %0;" :"=r"(temp) : :);
-  ut->ebp = temp;
+  // backup current thrad state by backing up its trap frame
+  // asm("movl %%esp, %0;" :"=r"(tf) : :);
+  // printf(1, "in uthread_schedule esp: %x\n", tf);
 
 
+  asm("movl %%ebp, %0;" :"=r"(tf) : :);
+  tf+=8;
+  printf(1, "in uthread_schedule 1 current->tid: %d, ut->tid: %d, tf: %x\n",current->tid,ut->tid, tf);
+  ut->tf = *((struct trapframe*)tf);
   ut->state = RUNNABLE;
-  //  printf(1,"1in uthread_schedule tf: %x tf->eip: %x\n",ut->tf, ut->tf->eip);
 
   ut++;
   while(ut->state != RUNNABLE){
-    ut++;
-    if(ut >= &uttable[MAX_UTHREADS])
-      ut = uttable;
-  }
+     ut++;
+     if(ut >= &uttable[MAX_UTHREADS])
+       ut = uttable;
+   }
 
-  // temp = ut->tf->ebp;
-  // asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
-  temp = ut->ebp;
-  asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
-  temp = ut->esp;
-  asm("movl %1, %%esp;" :"=r"(temp) :"r"(temp) :);
-  //printf(1,"2in uthread_schedule temp: %x\n",temp);
+   //
+  //  temp = ut->tf.ebp;
+  //  asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
+  //  temp = ut->ebp;
+  //  asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
+  //  temp = ut->esp;
+  //  asm("movl %1, %%esp;" :"=r"(temp) :"r"(temp) :);
 
-  //
-  // asm("movl %%esp, %0;" :"=r"(temp) : :);
-  // printf(1,"3in uthread_schedule temp: %x\n",temp);
+   //printf(1,"2in uthread_schedule temp: %x\n",temp);
 
-  alarm(UTHREAD_QUANTA);
-  return;
+   //
+   // asm("movl %%esp, %0;" :"=r"(temp) : :);
+   // printf(1,"3in uthread_schedule temp: %x\n",temp);
+
+   // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
+   printf(1, "in uthread_schedule 2 current->tid: %d, ut->tid: %d tf: %x\n",current->tid, ut->tid, tf);
+   *((struct trapframe*)tf) = ut->tf;
+   ut->state = RUNNING;
+   alarm(UTHREAD_QUANTA);
+   return;
 }
 
-void uthread_exit()
+void
+uthread_exit()
 {
-
+  printf(1, "in uthread_exit\n");
 }
 
 int
