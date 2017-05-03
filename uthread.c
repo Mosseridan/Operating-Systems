@@ -78,7 +78,7 @@ uthread_create(void (*start_func)(void*), void* arg)
   found:
     ut->tid = nexttid++;
     ut->pid = getpid();
-    //ut->tf = current->tf;
+    ut->tf = current->tf;
 
     // Allocate thread stack.
     if((ut->tf.ss = (uint)malloc(TSTACKSIZE)) == 0){
@@ -89,13 +89,19 @@ uthread_create(void (*start_func)(void*), void* arg)
 
 
     sp = ut->tf.ss + TSTACKSIZE;
-    printf(1,"in uthread_create: current->tid: %d, ut->tid: %d, ut->tf.ss: %x, sp: %x\n",current->tid, ut->tid,ut->tf.ss,sp);
-    // Leave room for trap frame.
-    // sp -= sizeof *ut->tf;
-    // ut->tf = (struct trapframe*)sp;
-    // memmove(ut->tf ,current->tf,sizeof(struct trapframe));
 
-    // printf(1,"current->tf: %x\n",current->tf);
+
+
+
+    // // Allocate thread stack.
+    // if((sp = (uint)malloc(TSTACKSIZE)) == 0){
+    //   ut->state = UNUSED;
+    //   return -1;
+    // }
+    //
+    //
+    //
+    // sp += TSTACKSIZE;
 
 
 
@@ -118,8 +124,10 @@ uthread_create(void (*start_func)(void*), void* arg)
 
     // set threads eip to start_func
     ut->tf.eip = (uint)start_func;
+    printf(1,"\nin uthread_create: current->tid: %d, ut->tid: %d, ut->tf.esp: %x\n"
+    ,current->tid,ut->tid,ut->tf.esp);
+    //printf(1,"!! current->tf.eip,"current->tf-<)
     ut->state = RUNNABLE;
-    printf(1,"in uthread_create 4: current->tid: %d, ut->tid: %d, ut->tf.ebp: %x, ut->tf.esp: %x, ut->tf.eip %x \n",current->tid,ut->tid,ut->tf.ebp, ut->tf.esp,ut->tf.eip, sp);
     return ut->tid;
 }
 
@@ -138,7 +146,7 @@ uthread_schedule()
 
   asm("movl %%ebp, %0;" :"=r"(tf) : :);
   tf+=8;
-  printf(1, "in uthread_schedule 1 current->tid: %d, ut->tid: %d, tf: %x\n",current->tid,ut->tid, tf);
+  printf(1, "\nin uthread_schedule before current->tid: %d, ut->tid: %d, tf: %x\n",current->tid,ut->tid, tf);
   ut->tf = *((struct trapframe*)tf);
   ut->state = RUNNABLE;
 
@@ -164,17 +172,19 @@ uthread_schedule()
    // printf(1,"3in uthread_schedule temp: %x\n",temp);
 
    // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
-   printf(1, "in uthread_schedule 2 current->tid: %d, ut->tid: %d tf: %x\n",current->tid, ut->tid, tf);
    *((struct trapframe*)tf) = ut->tf;
+   current = ut;
    ut->state = RUNNING;
+   printf(1, "\nin uthread_schedule before current->tid: %d, ut->tid: %d tf: %x\n",current->tid, ut->tid, tf);
    alarm(UTHREAD_QUANTA);
+
    return;
 }
 
 void
 uthread_exit()
 {
-  printf(1, "in uthread_exit\n");
+  printf(1, "\nin uthread_exit\n");
 }
 
 int

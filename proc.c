@@ -7,6 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -554,6 +555,7 @@ pseudo_sigreturn()
   // simulate calling sigreturn() by pushing 0 which is argc,
   // putting 24 which is SYS_sigreturn in eax and delaring int 64 (interupt handler)
   asm("pushl $0; movl $24, %eax; int $64;");
+
 }
 
 // (system call) retuen from a signal handler
@@ -562,12 +564,13 @@ sigreturn()
 {
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
+  cprintf("\nin sigreturn before restore: proc->tf->ebp + 8: %x\n", proc->tf->ebp+8);
   if(memmove(proc->tf,(void*)(proc->tf->ebp + 8),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
     if (! has_lk) release(&ptable.lock);
     return -1;
   }
+  cprintf("\nin sigreturn after restore: proc->tf->esp: %x, proc->tf->eip: %x\n", proc->tf->esp,proc->tf->eip);
   if (! has_lk) release(&ptable.lock);
-  cprintf("in sigreturn: proc->tf->esp + 12: %x , proc->tf->ebp + 8: %x\n", proc->tf->esp + 12, proc->tf->ebp+8);
   return 0;
 }
 
@@ -587,7 +590,7 @@ setup_frame(int signum)
   // backup trapframe on user stack
   user_esp -= sizeof(struct trapframe);
   memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
-  cprintf("in setup_frame: user_esp: %x\n", user_esp);
+  cprintf("\nin setup_frame: user_esp: %x\n", user_esp);
 
   // push first argument to signal handler (signum)
   user_esp -= sizeof(int);
