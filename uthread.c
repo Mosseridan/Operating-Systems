@@ -11,43 +11,6 @@ uthread_schedule_wrapper(int signum){
   uthread_schedule();//TODO: WTF?
 }
 
-// static struct uthread*
-// allocuthread()
-// {
-//   struct uthread *ut;
-//   uint sp;
-//
-//   for(ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
-//     if(ut->state == UNUSED)
-//       goto found;
-//   }
-//   return 0;
-//
-//   found:
-//     ut->state = EMBRYO;
-//     ut->tid = nexttid++;
-//     ut->pid = getpid();
-//
-//     // Allocate thred stack.
-//     if((ut->tf->ss = (uint)malloc(TSTACKSIZE)) == 0){
-//       ut->state = UNUSED;
-//       return 0;
-//     }
-//     sp = ut->tf->ss + TSTACKSIZE;
-//
-//
-//     // Leave room for trap frame.
-//     sp -= sizeof *ut->tf;
-//     ut->tf = (struct trapframe*)sp;
-//     memmove(ut->tf ,current->tf,sizeof(struct trapframe));
-//     // initialize thread stack pointers
-//     ut->ebp = sp;
-//     ut->tf->ebp = sp;
-//     ut->esp = sp;
-//     ut->tf->esp = sp;
-//     return ut;
-// }
-
 //TODO: Set EIP to be something we don't know just yet
 int
 uthread_init()
@@ -81,14 +44,14 @@ uthread_create(void (*start_func)(void*), void* arg)
     ut->tf = current->tf;
 
     // Allocate thread stack.
-    if((ut->tf.ss = (uint)malloc(TSTACKSIZE)) == 0){
+    if((sp = (uint)malloc(TSTACKSIZE)) == 0){
       ut->state = UNUSED;
       return -1;
     }
 
 
 
-    sp = ut->tf.ss + TSTACKSIZE;
+    sp += TSTACKSIZE;
 
 
 
@@ -118,7 +81,7 @@ uthread_create(void (*start_func)(void*), void* arg)
     //printf(1,"in uthread_create 3: current->tid: %d, ut->tid: %d, sp: %x\n",current->tid,ut->tid,sp);
     // initialize thread stack pointers
     //ut->ebp = sp;
-    ut->tf.ebp = sp;
+    //ut->tf.ebp = sp;
     //ut->esp = sp;
     ut->tf.esp = sp;
 
@@ -155,7 +118,7 @@ uthread_schedule()
      ut++;
      if(ut >= &uttable[MAX_UTHREADS])
        ut = uttable;
-   }
+  }
 
    //
   //  temp = ut->tf.ebp;
@@ -172,7 +135,7 @@ uthread_schedule()
    // printf(1,"3in uthread_schedule temp: %x\n",temp);
 
    // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
-   *((struct trapframe*)tf) = ut->tf;
+   memmove((void*)tf, (void*)&ut->tf, sizeof(struct trapframe));
    current = ut;
    ut->state = RUNNING;
    printf(1, "\nin uthread_schedule before current->tid: %d, ut->tid: %d tf: %x\n",current->tid, ut->tid, tf);

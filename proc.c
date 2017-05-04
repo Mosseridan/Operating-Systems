@@ -633,7 +633,7 @@ handle_signal(int signum)
 void
 do_signals()
 {
-  if(proc == 0 || proc->pending == 0 || proc->tf->cs == 8)
+  if(proc == 0 || proc->pending == 0 || (proc->tf->cs &  3) != DPL_USER)
     return;
 
   for(int signum=0; signum<NUMSIG; signum++){
