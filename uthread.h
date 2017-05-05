@@ -14,7 +14,7 @@ struct uthread {
 //uthread.cei
 int uthread_init(void);
 int uthread_create(void (*) (void*), void*);
-void uthread_schedule(void);
+void uthread_schedule(struct trapframe*);
 void uthread_exit(void);
 int uthread_self(void);
 int uthread_join(int);

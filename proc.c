@@ -631,9 +631,9 @@ handle_signal(int signum)
 
 // handls all pending signals
 void
-do_signals()
+do_signals(struct trapframe* tf)
 {
-  if(proc == 0 || proc->pending == 0 || (proc->tf->cs &  3) != DPL_USER)
+  if(proc == 0 || proc->pending == 0 || (tf->cs &  3) != DPL_USER)
     return;
 
   for(int signum=0; signum<NUMSIG; signum++){
@@ -649,11 +649,19 @@ do_signals()
 int
 alarm(int time)
 {
+  // cprintf("in alarm \n");
+  int temp_alarm = 0;
+  int has_lk = holding(&ptable.lock);
+  if (!has_lk) acquire(&ptable.lock);
+  // cprintf("in alarm with lock\n");
   if(time)
-    return (proc->alarm = ticks+time);
+    temp_alarm = ticks+time;
   else if(proc->pending & pows[SIGALRM])
     proc->pending ^=  pows[SIGALRM];//cancel an already pending SIGALARM signal
-  return (proc->alarm = 0);
+  proc->alarm = temp_alarm;
+  if (! has_lk) release(&ptable.lock);
+  // cprintf("in alarm lock released\n");
+  return (temp_alarm);
 }
 
 // handls alarms

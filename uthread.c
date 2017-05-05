@@ -11,13 +11,17 @@ struct uthread uttable[MAX_UTHREADS];
 
 void
 uthread_schedule_wrapper(int signum){
-  uthread_schedule();//TODO: WTF?
+  uint tf;
+  asm("movl %%ebp, %0;" :"=r"(tf) : :);
+  tf+=8;
+  // tf+=12; //USE THIS WHEN PRINTING!!!
+  // printf(1,"in wrapper %x\n", tf); //IF U ADD THIS LINE BACK U MUST REPLACE THE TF+8 to TF+12!!!
+  uthread_schedule((struct trapframe*)tf);
 }
 
 int
 uthread_init()
 {
-
   struct uthread* ut = uttable;
   ut->tid = nexttid++;
   ut->pid = getpid();
@@ -27,6 +31,7 @@ uthread_init()
   signal(SIGALRM, (sighandler_t) uthread_schedule_wrapper);
   sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
   alarm(UTHREAD_QUANTA);
+  // printf(1, "in uthread_init after alarm 5\n");
   return ut->tid;
 }
 
@@ -34,7 +39,7 @@ int
 uthread_create(void (*start_func)(void*), void* arg)
 {
   alarm(0);//disabling SIGALARM interupts to make uthread_create an atomic method
-  //printf(1, "in uthread_create\n");
+  // printf(1, "in uthread_create after alarm 0\n");
   struct uthread *ut;
   uint sp;
 
@@ -61,17 +66,12 @@ uthread_create(void (*start_func)(void*), void* arg)
     sp -= 4;
     *(void**)sp = arg;
     //printf(1,"in uthread_create 2: current->tid: %d,  ut->tid: %d, sp: %x\n",current->tid, ut->tid, sp);
-    // push argc
-    // sp -= 4;
-    // *(int*)sp = 1;
+
     // push return address to thread_exit
     sp -= 4;
     *(void**)sp = uthread_exit;
     //printf(1,"in uthread_create 3: current->tid: %d, ut->tid: %d, sp: %x\n",current->tid,ut->tid,sp);
     // initialize thread stack pointers
-    //ut->ebp = sp;
-    //ut->tf.ebp = sp;
-    //ut->esp = sp;
     ut->tf.esp = sp;
 
     // set threads eip to start_func
@@ -79,25 +79,21 @@ uthread_create(void (*start_func)(void*), void* arg)
     //printf(1,"!! current->tf.eip,"current->tf-<)
     ut->state = RUNNABLE;
     alarm(UTHREAD_QUANTA);//allowing SIGALARM to interupt again
+    // printf(1, "in uthread_create after alarm 5\n");
     return ut->tid;
 }
 
 void
-uthread_schedule()
+uthread_schedule(struct trapframe* tf)
 {
-  // printf(1, "in uthread_schedule\n");
-
-  uint tf;
+  alarm(0);
+  // printf(1, "@@@@@in uthread_schedule after alarm 0 with tf: %x\n", tf);
   struct uthread *ut = current;
-
-  // backup current thrad state by backing up its trap frame
-  // asm("movl %%esp, %0;" :"=r"(tf) : :);
-  // printf(1, "in uthread_schedule esp: %x\n", tf);
-
-  asm("movl %%ebp, %0;" :"=r"(tf) : :);
-  tf+=8;
-  ut->tf = *((struct trapframe*)tf);
-  ut->state = RUNNABLE;
+  // back up the tf already on the stack to the current running thread's tf only if the current thread is not dead yet
+  if(ut->state == RUNNING){
+    memmove((void*)&ut->tf, tf, sizeof(struct trapframe));
+    ut->state = RUNNABLE;
+  }
 
   ut++;
   while(ut->state != RUNNABLE){
@@ -106,80 +102,38 @@ uthread_schedule()
        ut = uttable;
   }
 
-   //
-  //  temp = ut->tf.ebp;
-  //  asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
-  //  temp = ut->ebp;
-  //  asm("movl %1, %%ebp;" :"=r"(temp) :"r"(temp) :);
-  //  temp = ut->esp;
-  //  asm("movl %1, %%esp;" :"=r"(temp) :"r"(temp) :);
-
-   //printf(1,"2in uthread_schedule temp: %x\n",temp);
-
-   //
-   // asm("movl %%esp, %0;" :"=r"(temp) : :);
-   // printf(1,"3in uthread_schedule temp: %x\n",temp);
-
    // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
-   memmove((void*)tf, (void*)&ut->tf, sizeof(struct trapframe));
+   memmove(tf, (void*)&ut->tf, sizeof(struct trapframe));
+   if(current->state == UNUSED)
+     free((void*)current->tstack);
    current = ut;
    ut->state = RUNNING;
    alarm(UTHREAD_QUANTA);
-
+  //  printf(1, "@@@@@in uthread_schedule after alarm 5\n");
    return;
-}
-
-void //TODO: remove this
-temp123() {
-  printf(1,"I'm here.. \n");
 }
 
 void
 uthread_exit()
 {
-  for(;;);
-  // exit();
   alarm(0);
   printf(1, "in uthread_exit closing tid: %d\n",current->tid);
   struct uthread *ut = current;
-
+  ut->state = ZOMBIE;
   ut++;
-  while(ut->state != RUNNABLE){
+  while(ut->state != RUNNABLE && ut->state == SLEEPING && ut->state != ZOMBIE){
    ut++;
    if(ut >= &uttable[MAX_UTHREADS])
      ut = uttable;
   }
 
-  printf(1,"!!!!!!!!!\n");
-  if(current->tstack){
-    free((void*)current->tstack);
-  }
-  printf(1,"?????????\n");
-
-  if(ut->tid == current->tid){
+  if(ut->state == ZOMBIE){
+    if(current->tstack)
+      free((void*)current->tstack);
     exit();
   }
-
   current->state = UNUSED;
-
-  current = ut;
-  current->state = RUNNING;
-  printf(1, "in uthread_exit starting tid: %d\n",current->tid);
-  uint bp  = current->tf.ebp;
-  asm("movl %1, %%ebp;" :"=r"(bp) :"r"(bp) :);
-
-  uint sp  = current->tf.esp;
-  sp -= 4;
-  *(void**)sp = temp123;// (uint)current->tf.eip;
-  // memmove((void*)sp, (void*)temp, 4);
-  printf(1, "in uthread_exit sp: %x temp123: %x\n",sp,*(uint*)sp);
-
-  asm("movl %1, %%esp;" :"=r"(sp) :"r"(sp) :);
-  asm("movl %%esp, %0;" :"=r"(temp) :"r"(temp) :);
-
-  printf(1, "in uthread_exit starting temp123: %x temp: %x  *temp: %x\n",temp123, temp, *(uint*)temp);
-
-  alarm(UTHREAD_QUANTA);
+  sigsend(current->pid, SIGALRM);
   return;
 }
 
