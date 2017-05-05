@@ -5,10 +5,6 @@ enum tstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct uthread {
   uint tid;   //thread id
-  struct uttable* uttable;
-  // uint esp; //thread stack pointer
-  // uint ebp;
-  //uint eip; //thread instruction pointer
   uint tstack; //pointer to the thread's stack
   enum tstate state; //thread state (UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE)
   struct trapframe tf; //the trapframe backed up on the user stack

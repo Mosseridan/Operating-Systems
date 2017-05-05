@@ -1,7 +1,6 @@
 #include "types.h"
 #include "user.h"
 #include "stat.h"
-// #include "x86.h"
 #include "uthread.h"
 
 uint TEMP;
@@ -10,7 +9,6 @@ void
 test(int sigNum){
  printf(1,"\n=======================Signal Handler===================================\n Process id:  %d  Signal number: %d \n\n", getpid(),sigNum);
 }
-
 
 void
 foo(void* arg)
@@ -55,14 +53,12 @@ int b = 100;
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
 // uthread_create(foo,&a);
-// uthread_create(foo,&b);
+uthread_create(foo,&b);
 uthread_create(foo2,&b);
-// uthread_create(foo,&b);
-// uthread_create(foo2,&b);
-// uthread_create(foo,&b);
+uthread_create(foo,&b);
+uthread_create(foo2,&b);
+uthread_create(foo,&b);
 //foo(&c);
-for(;;){
-
-}
+for(;;){}
 exit();
 }

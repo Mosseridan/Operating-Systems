@@ -137,7 +137,7 @@ temp123() {
 void
 uthread_exit()
 {
-  // for(;;);
+  for(;;);
   // exit();
   alarm(0);
   printf(1, "in uthread_exit closing tid: %d\n",current->tid);

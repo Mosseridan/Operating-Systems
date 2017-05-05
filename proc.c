@@ -651,10 +651,9 @@ alarm(int time)
 {
   if(time)
     return (proc->alarm = ticks+time);
-  else{
-    return (proc->alarm = 0);
-    proc->pending ^=  pows[SIGALRM];//cancel an already pending SIGALARM signal TODO: should we remove this?
-  }
+  else if(proc->pending & pows[SIGALRM])
+    proc->pending ^=  pows[SIGALRM];//cancel an already pending SIGALARM signal
+  return (proc->alarm = 0);
 }
 
 // handls alarms
