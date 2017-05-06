@@ -55,31 +55,25 @@ uthread_create(void (*start_func)(void*), void* arg)
     ut->tf = current->tf;
 
     // Allocate thread stack.
-    if((ut->tstack = (uint)malloc(TSTACKSIZE)) == 0){
+    if((ut->tstack = (uint)malloc(TSTACKSIZE)) == 0){//saving a pointer to the thread's stack
       ut->state = UNUSED;
       return -1;
     }
 
-    sp = ut->tstack + TSTACKSIZE; //saving a pointer to the thread's stack
-
+    sp = ut->tstack + TSTACKSIZE;
     // push arg
     sp -= 4;
     *(void**)sp = arg;
-    //printf(1,"in uthread_create 2: current->tid: %d,  ut->tid: %d, sp: %x\n",current->tid, ut->tid, sp);
-
     // push return address to thread_exit
     sp -= 4;
     *(void**)sp = uthread_exit;
-    //printf(1,"in uthread_create 3: current->tid: %d, ut->tid: %d, sp: %x\n",current->tid,ut->tid,sp);
     // initialize thread stack pointers
     ut->tf.esp = sp;
-
     // set threads eip to start_func
     ut->tf.eip = (uint)start_func;
     //printf(1,"!! current->tf.eip,"current->tf-<)
     ut->state = RUNNABLE;
     alarm(UTHREAD_QUANTA);//allowing SIGALARM to interupt again
-    // printf(1, "in uthread_create after alarm 5\n");
     return ut->tid;
 }
 
@@ -87,22 +81,18 @@ void
 uthread_schedule(struct trapframe* tf)
 {
   alarm(0);
-  // printf(1, "@@@@@in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
   struct uthread *ut = current;
   // back up the tf already on the stack to the current running thread's tf only if the current thread is not dead yet
   if(ut->state == RUNNING){
     memmove((void*)&ut->tf, tf, sizeof(struct trapframe));
     ut->state = RUNNABLE;
   }
-  // printf(1, "1 in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
   ut++;
   while(ut->state != RUNNABLE && ut->tid != current->tid){
    ut++;
    if(ut >= &uttable[MAX_UTHREADS])
      ut = uttable;
   }
-  // printf(1, "2 in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
-
   // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
   memmove(tf, (void*)&ut->tf, sizeof(struct trapframe));
   if(current->state == UNUSED && current->tstack)
@@ -110,12 +100,11 @@ uthread_schedule(struct trapframe* tf)
   current = ut;
   if(ut->state != RUNNABLE){
     if(ut->tstack)
-     free((void*)current->tstack);
+     free((void*)ut->tstack);
     exit();
   }
   ut->state = RUNNING;
   alarm(UTHREAD_QUANTA);
-  // printf(1, "@@@@@in uthread_schedule after alarm 5\n");
   return;
 }
 
@@ -123,7 +112,6 @@ void
 uthread_exit()
 {
   alarm(0);
-  printf(1, "in uthread_exit closing tid: %d\n",current->tid);
   struct uthread *ut = current;
   ut->state = ZOMBIE;
   ut++;
