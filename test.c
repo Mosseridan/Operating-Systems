@@ -51,7 +51,7 @@ int b = 100;
 // asm("movl %%esp, %0;" :"=r"(temp) : :);
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
-for(int i=0; i < 20; i++){
+for(int i=0; i < 100; i++){
   if(i%2 == 0)
     uthread_create(foo,&b);
   else

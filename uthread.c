@@ -82,12 +82,12 @@ uthread_schedule(struct trapframe* tf)
   alarm(0);//disabling alarms to prevent synchronization problems
   struct uthread *ut = current;
   // back up the tf already on the stack to the current running thread's tf only if the current thread is not dead yet
-  printf(1, "in uthread_schedule: current->tid: %d  current->state: %d\n", current->tid, current->state);
+  // printf(1, "in uthread_schedule: current->tid: %d  current->state: %d\n", current->tid, current->state);
   memmove((void*)&ut->tf, tf, sizeof(struct trapframe));
   if(ut->state == RUNNING){
-    printf(1, "%d: changing this to runnable in sched\n",ut->tid);
+    // printf(1, "%d: changing this to runnable in sched\n",ut->tid);
     ut->state = RUNNABLE;
-    printf(1, "changed %d's  state to: %d\n", current->tid, current->state);
+    // printf(1, "changed %d's  state to: %d\n", current->tid, current->state);
   }
 
   ut++;
@@ -95,10 +95,10 @@ uthread_schedule(struct trapframe* tf)
     ut = uttable;
   while(ut->state != RUNNABLE){
    if(ut->state == SLEEPING){
-     printf(1, "%d: this thread is waiting on a wakeup call\n",ut->tid);
+    //  printf(1, "%d: this thread is waiting on a wakeup call\n",ut->tid);
      if(ut->wakeup > 0 && ut->wakeup <= uptime()){
       ut->wakeup = 0;
-      printf(1, "%d: changing this to runnable in wakeup\n",ut->tid);
+      // printf(1, "%d: changing this to runnable in wakeup\n",ut->tid);
       ut->state = RUNNABLE;
       break;
      }
@@ -107,7 +107,7 @@ uthread_schedule(struct trapframe* tf)
    if(ut >= &uttable[MAX_UTHREADS])
      ut = uttable;
   }
-  printf(1, "%d: this is the thread the sched chose to run. state: %d\n",ut->tid, ut->state);
+  // printf(1, "%d: this is the thread the sched chose to run. state: %d\n",ut->tid, ut->state);
   // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
   memmove(tf, (void*)&ut->tf, sizeof(struct trapframe));
 
@@ -117,7 +117,7 @@ uthread_schedule(struct trapframe* tf)
   current = ut;
 
   if(ut->state != RUNNABLE && living_threads){
-    printf(1, "freeing stack\n");
+    printf(1, "freeing stack\n");//TODO: MAKE SURE THIS IS WORKING!!!
     if(ut->tstack)
      free((void*)ut->tstack);
     exit();
@@ -134,12 +134,12 @@ void
 uthread_exit()
 {
   alarm(0);//disabling alarms to prevent synchronization problems
-  printf(1,"now closing %d\n", current->tid);
+  // printf(1,"now closing %d\n", current->tid);
   living_threads--;
   current->state = ZOMBIE;
   for(int i=0; i<MAX_UTHREADS-1; i++){
     if(current->joined_on_me[i]){
-      printf(1, "%d: changing this to runnable in exit when closing %d\n",current->joined_on_me[i]->state, current->tid);
+      // printf(1, "%d: changing this to runnable in exit when closing %d\n",current->joined_on_me[i]->state, current->tid);
       current->joined_on_me[i]->state = RUNNABLE;
       current->joined_on_me[i] = 0;
     }
@@ -164,12 +164,12 @@ uthread_self()
 int uthread_join(int tid)
 {
   alarm(0);//disabling alarms to prevent synchronization problems
-  printf(1, "%d is trying to join %d\n", current->tid, tid);
+  // printf(1, "%d is trying to join %d\n", current->tid, tid);
   if(tid > 0 && tid < nexttid && tid != current->tid ){//if an illegal tid is entered do nothing
     // printf(1, "tid: %d is legal\n", tid);
     for(int i=0; i<MAX_UTHREADS; i++){
       if((uttable[i].tid == tid) && (uttable[i].state == RUNNABLE || uttable[i].state == SLEEPING || uttable[i].state == JOINNING)){//if there is an existing thread with this TID
-        printf(1, "i: %d found %d and he is %d\n", i, tid, uttable[i].state);
+        // printf(1, "i: %d found %d and he is %d\n", i, tid, uttable[i].state);
         current->state = JOINNING;
         uttable[i].joined_on_me[current->uttable_index] = current;
         sigsend(current->pid, SIGALRM);//instead of allowing alarms we send the signal and go to schedule where alarms will be allowed again
