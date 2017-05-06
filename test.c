@@ -13,10 +13,12 @@ test(int sigNum){
 void
 foo(void* arg)
 {
-  uthread_join(uthread_self()-1);
+  if(uthread_self()%3==0)
+    uthread_join(uthread_self()-1);
   for(int i= 10; i>0; i--){
     // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
-    sleep(13);
+    // uthread_sleep(13);
+    uthread_sleep(13);
   }
   printf(1,"tid: %d is ending\n",uthread_self());
 }
@@ -24,15 +26,13 @@ foo(void* arg)
 void
 foo2(void* arg)
 {
-  uthread_join(uthread_self()-1);
+  // if(uthread_self()%5==0)
+    uthread_join(uthread_self()-1);
   // printf(1,"tid: %d\n",uthread_self());
-
+  for(int i= 10; i>0; i--){
+    printf(1,"tid: %d, i: %d\n",uthread_self(),i);
+  }
   printf(1,"tid: %d is ending\n",uthread_self());
-
-  // for(int i= 10; i>0; i--){
-    // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
-  // }
-// for(;;);
 }
 
 
@@ -51,13 +51,12 @@ int b = 100;
 // asm("movl %%esp, %0;" :"=r"(temp) : :);
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
-// uthread_create(foo,&a);
-for(int i=0; i < 4; i++){
+for(int i=0; i < 20; i++){
   if(i%2 == 0)
     uthread_create(foo,&b);
   else
     uthread_create(foo2,&b);
-  for(int j=0; j<10000000; j++){j++; j--;}
+  uthread_sleep(5);
 }
 //foo(&c);
 // for(;;){}
