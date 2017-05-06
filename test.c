@@ -13,20 +13,19 @@ test(int sigNum){
 void
 foo(void* arg)
 {
+  uthread_join(uthread_self()-1);
   for(int i= 10; i>0; i--){
-    printf(1,"tid: %d, i: %d\n",uthread_self(),i);
+    // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
     sleep(13);
   }
-  uthread_join(uthread_self()-1);
   printf(1,"tid: %d is ending\n",uthread_self());
-  
 }
 
 void
 foo2(void* arg)
 {
-  printf(1,"tid: %d\n",uthread_self());
   uthread_join(uthread_self()-1);
+  // printf(1,"tid: %d\n",uthread_self());
 
   printf(1,"tid: %d is ending\n",uthread_self());
 
@@ -53,12 +52,12 @@ int b = 100;
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
 // uthread_create(foo,&a);
-for(int i=0; i < 100; i++){
+for(int i=0; i < 4; i++){
   if(i%2 == 0)
     uthread_create(foo,&b);
   else
     uthread_create(foo2,&b);
-  sleep(5);
+  for(int j=0; j<10000000; j++){j++; j--;}
 }
 //foo(&c);
 // for(;;){}
