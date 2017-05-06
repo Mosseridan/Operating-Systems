@@ -87,30 +87,36 @@ void
 uthread_schedule(struct trapframe* tf)
 {
   alarm(0);
-  // printf(1, "@@@@@in uthread_schedule after alarm 0 with tf: %x\n", tf);
+  // printf(1, "@@@@@in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
   struct uthread *ut = current;
   // back up the tf already on the stack to the current running thread's tf only if the current thread is not dead yet
   if(ut->state == RUNNING){
     memmove((void*)&ut->tf, tf, sizeof(struct trapframe));
     ut->state = RUNNABLE;
   }
-
+  // printf(1, "1 in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
   ut++;
-  while(ut->state != RUNNABLE){
-     ut++;
-     if(ut >= &uttable[MAX_UTHREADS])
-       ut = uttable;
+  while(ut->state != RUNNABLE && ut->tid != current->tid){
+   ut++;
+   if(ut >= &uttable[MAX_UTHREADS])
+     ut = uttable;
   }
+  // printf(1, "2 in uthread_schedule after alarm 0 with current->tid: %d\n", current->tid);
 
-   // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
-   memmove(tf, (void*)&ut->tf, sizeof(struct trapframe));
-   if(current->state == UNUSED)
+  // copy the tf of the thread to be run next on to currnt user stack so we will rever back to it at sigreturn;
+  memmove(tf, (void*)&ut->tf, sizeof(struct trapframe));
+  if(current->state == UNUSED && current->tstack)
+   free((void*)current->tstack);
+  current = ut;
+  if(ut->state != RUNNABLE){
+    if(ut->tstack)
      free((void*)current->tstack);
-   current = ut;
-   ut->state = RUNNING;
-   alarm(UTHREAD_QUANTA);
-  //  printf(1, "@@@@@in uthread_schedule after alarm 5\n");
-   return;
+    exit();
+  }
+  ut->state = RUNNING;
+  alarm(UTHREAD_QUANTA);
+  // printf(1, "@@@@@in uthread_schedule after alarm 5\n");
+  return;
 }
 
 void

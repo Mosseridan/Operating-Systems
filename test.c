@@ -59,6 +59,9 @@ uthread_create(foo,&b);
 uthread_create(foo2,&b);
 uthread_create(foo,&b);
 //foo(&c);
-for(;;){}
-exit();
+// for(;;){}
+for(int i = 0; i < 10; i++){
+  sleep(1);
+}
+uthread_exit();
 }
