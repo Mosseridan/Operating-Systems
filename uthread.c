@@ -1,10 +1,8 @@
 #include "uthread.h"
 #include "user.h"
 
-uint temp = 0;
-
-
 uint nexttid = 1;
+int living_threads = 0;
 struct uthread* current;
 struct uthread uttable[MAX_UTHREADS];
 
@@ -27,6 +25,7 @@ uthread_init()
   ut->state = RUNNING;
   ut->tstack = 0; //the main thread is using the regular user's stack, no need to free at uthread_exit
   ut->uttable_index = 0;
+  living_threads++;
   current = ut;
   signal(SIGALRM, (sighandler_t) uthread_schedule_wrapper);
   sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
@@ -38,6 +37,7 @@ int
 uthread_create(void (*start_func)(void*), void* arg)
 {
   alarm(0);//disabling SIGALARM interupts to make uthread_create an atomic method
+  living_threads++;
   struct uthread *ut;
   uint sp;
 
@@ -88,6 +88,9 @@ uthread_schedule(struct trapframe* tf)
   }
   ut++;
   while(ut->state != RUNNABLE && ut->tid != current->tid){
+   if(ut->state == SLEEPING){
+     //TODO: CHECK IF THREAD SHOULD WAKE UP AND IF SO WAKE HIM UP!
+   }
    ut++;
    if(ut >= &uttable[MAX_UTHREADS])
      ut = uttable;
@@ -111,21 +114,27 @@ void
 uthread_exit()
 {
   alarm(0);//disabling alarms to prevent synchronization problems
-  struct uthread *ut = current;
+  living_threads--;
   current->state = ZOMBIE;
   for(int i=0; i<MAX_UTHREADS-1; i++){
     if(current->joined_on_me[i])
       current->joined_on_me[i]->state = RUNNABLE;
   }
 
-  ut++;
-  while(ut->state != RUNNABLE && ut->state == SLEEPING && ut->state != ZOMBIE){
-   ut++;
-   if(ut >= &uttable[MAX_UTHREADS])
-     ut = uttable;
-  }
+  // struct uthread *ut = current;
+  // ut++;
+  // while(ut->state != RUNNABLE && ut->state == SLEEPING && ut->state != ZOMBIE){
+  //  ut++;
+  //  if(ut >= &uttable[MAX_UTHREADS])
+  //    ut = uttable;
+  // }
 
-  if(ut->state == ZOMBIE){
+  // if(ut->state == ZOMBIE){
+  //   if(current->tstack)
+  //     free((void*)current->tstack);
+  //   exit();
+  // }
+  if(living_threads == 0){
     if(current->tstack)
       free((void*)current->tstack);
     exit();

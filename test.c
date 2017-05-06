@@ -13,30 +13,28 @@ test(int sigNum){
 void
 foo(void* arg)
 {
-  //printf(1,"in foo: arg: %x\n",arg);
   for(int i= 10; i>0; i--){
     printf(1,"tid: %d, i: %d\n",uthread_self(),i);
     sleep(13);
   }
-  // for(;;);
+  uthread_join(uthread_self()-1);
+  printf(1,"tid: %d is ending\n",uthread_self());
+  
 }
 
 void
 foo2(void* arg)
 {
   printf(1,"tid: %d\n",uthread_self());
+  uthread_join(uthread_self()-1);
+
+  printf(1,"tid: %d is ending\n",uthread_self());
 
   // for(int i= 10; i>0; i--){
     // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
   // }
 // for(;;);
 }
-
-
-// void fuck(){
-//   asm("pop %%eax; movl %%eax, %0;" :"=r"(TEMP) : :"eax");
-//   printf(1,"\n!!!FOO: %x\n",TEMP);
-// }
 
 
 int
