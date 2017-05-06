@@ -24,9 +24,11 @@ foo(void* arg)
 void
 foo2(void* arg)
 {
-  for(int i= 10; i>0; i--){
-    printf(1,"tid: %d, i: %d\n",uthread_self(),i);
-  }
+  printf(1,"tid: %d\n",uthread_self());
+
+  // for(int i= 10; i>0; i--){
+    // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
+  // }
 // for(;;);
 }
 
@@ -53,11 +55,13 @@ int b = 100;
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
 // uthread_create(foo,&a);
-uthread_create(foo,&b);
-uthread_create(foo2,&b);
-uthread_create(foo,&b);
-uthread_create(foo2,&b);
-uthread_create(foo,&b);
+for(int i=0; i < 100; i++){
+  if(i%2 == 0)
+    uthread_create(foo,&b);
+  else
+    uthread_create(foo2,&b);
+  sleep(5);
+}
 //foo(&c);
 // for(;;){}
 // for(int i = 0; i < 10; i++){
