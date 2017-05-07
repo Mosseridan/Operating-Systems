@@ -35,6 +35,17 @@ foo2(void* arg)
   printf(1,"tid: %d is ending\n",uthread_self());
 }
 
+void
+foo3(void* arg)
+{
+
+  for(int i = 0; i<80; i++){
+      printf(1,"#%d:%d#",uthread_self(),i);
+      uthread_sleep(10);
+  }
+  printf(1,"&&&%d done\n",uthread_self());
+}
+
 
 int
 main(int argc, char *argv[]){
@@ -51,6 +62,13 @@ int b = 100;
 // asm("movl %%esp, %0;" :"=r"(temp) : :);
 // printf(1,"in main: temp: %x\n",temp);
 uthread_init();
+for(int i=0;i<64;i++){
+  uthread_create(foo3,&b);
+}
+uthread_join(63);
+uthread_sleep(1000);
+uthread_exit();
+
 for(int i=0; i < 100; i++){
   if(i%2 == 0)
     uthread_create(foo,&b);
@@ -59,7 +77,7 @@ for(int i=0; i < 100; i++){
   uthread_sleep(5);
 }
 //foo(&c);
-// for(;;){}
+//for(;;){}
 // for(int i = 0; i < 10; i++){
 //   sleep(1);
 // }

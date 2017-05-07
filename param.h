@@ -16,3 +16,4 @@
 #define MAX_UTHREADS 64  //maximum number of concurrent user level threads
 #define TSTACKSIZE 4096  // size of per-thread user stack
 #define UTHREAD_QUANTA 5 // the number of ticks in the quanta of a preamptive user thread
+#define MAX_BSEM     128 // max number of concurrent binary semphores
