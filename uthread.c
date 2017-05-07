@@ -54,11 +54,11 @@ uthread_create(void (*start_func)(void*), void* arg)
     ut->pid = getpid();
     ut->tf = current->tf;
     ut->uttable_index = ut-uttable;
-    printf(1,"@!! creating %d at uttable[%d] !!@\n",ut->tid,ut->uttable_index);
+    // printf(1,"@!! creating %d at uttable[%d] !!@\n",ut->tid,ut->uttable_index);
 
     // Allocate thread stack if no yet allocated.
     if(!ut->tstack){
-      printf(1,"!!! allocating stack for %d at uttable[%d] !!!\n",ut->tid,ut->uttable_index);
+      // printf(1,"!!! allocating stack for %d at uttable[%d] !!!\n",ut->tid,ut->uttable_index);
       if((ut->tstack = (uint)malloc(TSTACKSIZE)) == 0){//saving a pointer to the thread's stack
         ut->state = UNUSED;
         sigsend(current->pid, SIGALRM);
@@ -114,7 +114,7 @@ uthread_schedule(struct trapframe* tf)
       ut->tstack = 0;
     }
     else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
-      printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
+      // printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
       free((void*)ut->tstack);
       ut->tstack = 0;
     }
@@ -152,10 +152,22 @@ uthread_schedule(struct trapframe* tf)
 void
 uthread_exit()
 {
-
   alarm(0);//disabling alarms to prevent synchronization problems
   // printf(1,"now closing %d\n", current->tid);
-  living_threads--;
+  // living_threads--;
+  // printf(1,"%d $$$is exiting and living_threads is now %d\n",current->tid,living_threads);
+
+  if(--living_threads < 1){
+    // printf(1,"%d last thread exiting....\n",current->tid);
+    for(struct uthread* ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
+      if(ut->tstack){
+        // printf(1,"@@@ freeing stack for %d at uttable[%d] @@@\n",ut->tid,ut->uttable_index);
+        free((void*)ut->tstack);
+        ut->tstack = 0;
+      }
+    }
+    exit();
+  }
   //current->state = ZOMBIE;
 
   // for(int i=0; i<MAX_UTHREADS-1; i++){
@@ -175,19 +187,7 @@ uthread_exit()
 
   // printf(1,"%d $$$is exiting and living_threads are now %d\n",current->tid,living_threads);
   // int temp = living_threads;
-  // printf(1,"%d $$$is exiting and temp is now %d\n",current->tid,temp);
 
-  if(living_threads < 1){
-    // printf(1,"%d last thread exiting....\n",current->tid);
-    for(struct uthread* ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
-      if(ut->tstack){
-        // printf(1,"@@@ freeing stack for %d at uttable[%d] @@@\n",ut->tid,ut->uttable_index);
-        free((void*)ut->tstack);
-        ut->tstack = 0;
-      }
-    }
-    exit();
-  }
 
   // printf(1,"%d @@@is exiting and living_threads are now %d\n",current->tid,living_threads);
 
