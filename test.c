@@ -67,19 +67,24 @@ for(int i=0;i<64;i++){
 }
 uthread_join(63);
 uthread_sleep(1000);
+printf(1,"-----------------main thread is exiting--------------- \n");
+
 uthread_exit();
 
-for(int i=0; i < 100; i++){
-  if(i%2 == 0)
-    uthread_create(foo,&b);
-  else
-    uthread_create(foo2,&b);
-  uthread_sleep(5);
-}
+printf(1,"-----------------should not be here!!!--------------- \n");
+
+
+// for(int i=0; i < 100; i++){
+//   if(i%2 == 0)
+//     uthread_create(foo,&b);
+//   else
+//     uthread_create(foo2,&b);
+//   uthread_sleep(5);
+// }
 //foo(&c);
 //for(;;){}
 // for(int i = 0; i < 10; i++){
 //   sleep(1);
 // }
-uthread_exit();
+// uthread_exit();
 }

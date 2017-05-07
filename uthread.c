@@ -27,11 +27,10 @@ uthread_init()
   ut->state = RUNNING;
   ut->tstack = 0; //the main thread is using the regular user's stack, no need to free at uthread_exit
   ut->uttable_index = 0;
-  living_threads++;
+  // living_threads++; //why don't I need this?
   current = ut;
   signal(SIGALRM, (sighandler_t) uthread_schedule_wrapper);
   sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
-  // alarm(UTHREAD_QUANTA);//TODO: I think we don't need this because of the sigsend: We go straight to uthread_sched and ther we already have alarm(UTHREAD_QUANTA)
   return ut->tid;
 }
 
@@ -101,12 +100,18 @@ uthread_schedule(struct trapframe* tf)
   if(ut >= &uttable[MAX_UTHREADS])
     ut = uttable;
   while(ut->state != RUNNABLE){
-    //printf(1, ".");
+    // printf(1, ".");
     if(ut->state == SLEEPING && ut->wakeup > 0 && ut->wakeup <= uptime()){
        //  printf(1, "%d: this thread is waiting on a wakeup call\n",ut->tid);
       ut->wakeup = 0;
       // printf(1, "%d: changing this to runnable in wakeup\n",ut->tid);
       ut->state = RUNNABLE;
+    // } else if(ut->state == SLEEPING){
+        // printf(1,"%d is still waiting for a wakeup call: %d %d", ut->tid, ut->wakeup, uptime());
+    } else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
+      // printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
+      free((void*)ut->tstack);
+      ut->tstack = 0;
     }
     else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
       printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
@@ -149,7 +154,7 @@ uthread_exit()
 {
 
   alarm(0);//disabling alarms to prevent synchronization problems
-  printf(1,"now closing %d\n", current->tid);
+  // printf(1,"now closing %d\n", current->tid);
   living_threads--;
   //current->state = ZOMBIE;
 
@@ -164,22 +169,28 @@ uthread_exit()
     if(ut->state == SLEEPING && ut->joining == current->tid){
       ut->joining = 0;
       ut->state = RUNNABLE;
-      printf(1,"%d woke up %d\n",current->tid,ut->tid);
+      // printf(1,"%d woke up %d\n",current->tid,ut->tid);
     }
   }
 
+  // printf(1,"%d $$$is exiting and living_threads are now %d\n",current->tid,living_threads);
+  // int temp = living_threads;
+  // printf(1,"%d $$$is exiting and temp is now %d\n",current->tid,temp);
 
-  if(living_threads == 0){
-    printf(1,"%d last thread exiting....\n",current->tid);
+  if(living_threads < 1){
+    // printf(1,"%d last thread exiting....\n",current->tid);
     for(struct uthread* ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
       if(ut->tstack){
-        printf(1,"@@@ freeing stack for %d at uttable[%d] @@@\n",ut->tid,ut->uttable_index);
+        // printf(1,"@@@ freeing stack for %d at uttable[%d] @@@\n",ut->tid,ut->uttable_index);
         free((void*)ut->tstack);
         ut->tstack = 0;
       }
     }
     exit();
   }
+
+  // printf(1,"%d @@@is exiting and living_threads are now %d\n",current->tid,living_threads);
+
   current->state = UNUSED;
   sigsend(current->pid, SIGALRM);//instead of allowing alarms we send the signal and go to schedule where alarms will be allowed again
   return;
@@ -214,7 +225,7 @@ uthread_join(int tid)
   // return -1;//illegal tid or no runnable thread with such tid
 
   alarm(0);
-  printf(1, "%d is trying to join %d\n", current->tid, tid);
+  // printf(1, "%d is trying to join %d\n", current->tid, tid);
   for(struct uthread* ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
     if(ut->tid == tid && ut->state != UNUSED){
       current->joining = tid;
