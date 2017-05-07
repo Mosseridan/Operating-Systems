@@ -27,7 +27,7 @@ uthread_init()
   ut->state = RUNNING;
   ut->tstack = 0; //the main thread is using the regular user's stack, no need to free at uthread_exit
   ut->uttable_index = 0;
-  // living_threads++; //why don't I need this?
+  living_threads++; 
   current = ut;
   signal(SIGALRM, (sighandler_t) uthread_schedule_wrapper);
   sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
@@ -38,7 +38,6 @@ int
 uthread_create(void (*start_func)(void*), void* arg)
 {
   alarm(0);//disabling SIGALARM interupts to make uthread_create an atomic method
-  living_threads++;
   struct uthread *ut;
   uint sp;
 
@@ -50,6 +49,7 @@ uthread_create(void (*start_func)(void*), void* arg)
   return -1;
 
   found:
+    living_threads++;
     ut->tid = nexttid++;
     ut->pid = getpid();
     ut->tf = current->tf;
