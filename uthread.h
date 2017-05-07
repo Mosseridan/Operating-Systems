@@ -21,7 +21,11 @@ struct bsem{
   struct uthread* waiting[MAX_UTHREADS];
 };
 
-
+struct counting_semaphore{
+  int val;
+  int s1;
+  int s2;
+};
 
 //uthread.c
 int uthread_init(void);
@@ -35,3 +39,7 @@ int bsem_alloc(void);
 void bsem_free(int);
 void bsem_down(int);
 void bsem_up(int);
+struct counting_semaphore* alloc_csem(int init_val);
+void free_csem(struct counting_semaphore*);
+void down(struct counting_semaphore*);
+void up(struct counting_semaphore*);

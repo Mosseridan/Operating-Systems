@@ -108,11 +108,11 @@ uthread_schedule(struct trapframe* tf)
       // printf(1, "%d: changing this to runnable in wakeup\n",ut->tid);
       ut->state = RUNNABLE;
     }
-    // else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
-    //   printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
-    //   free((void*)ut->tstack);
-    //   ut->tstack = 0;
-    // }
+    else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
+      printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
+      free((void*)ut->tstack);
+      ut->tstack = 0;
+    }
     ut++;
     if(ut >= &uttable[MAX_UTHREADS])
       ut = uttable;
@@ -298,4 +298,46 @@ void bsem_up(int sem)
   bsemtable[sem]->s = 1;
   alarm(UTHREAD_QUANTA);
   return;
+}
+
+struct counting_semaphore*
+alloc_csem(int init_val)
+{
+  struct counting_semaphore *sem;
+  if((sem = malloc(sizeof(struct counting_semaphore))) == 0)
+    return 0;
+
+  sem->s1 = bsem_alloc();
+  sem->s2 = bsem_alloc();
+  if(init_val < 1){
+    bsem_down(sem->s2);
+  }
+  sem->val = init_val;
+  return sem;
+}
+
+void free_csem(struct counting_semaphore* sem)
+{
+  bsem_free(sem->s1);
+  bsem_free(sem->s2);
+  free(sem);
+}
+void
+down(struct counting_semaphore* sem){
+  bsem_down(sem->s2);
+  bsem_down(sem->s1);
+  sem->val--;
+  if(sem->val > 0)
+    bsem_up(sem->s2);
+  bsem_up(sem->s1);
+}
+
+void
+up(struct counting_semaphore* sem)
+{
+  bsem_down(sem->s1);
+  sem->val++;
+  if(sem->val ==1)
+    bsem_up(sem->s2);
+  bsem_up(sem->s1);
 }
