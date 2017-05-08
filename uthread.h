@@ -8,7 +8,7 @@ enum tstate { UNUSED, SLEEPING, RUNNABLE, RUNNING};//, ZOMBIE, JOINNING };
 struct uthread {
   uint tid;   //thread id
   uint tstack; //pointer to the thread's stack
-  uint uttable_index;
+  //uint uttable_index;
   enum tstate state; //thread state (UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE)
   struct trapframe tf; //the trapframe backed up on the user stack
   uint pid; //the pid of the process running this thread

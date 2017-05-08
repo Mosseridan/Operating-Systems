@@ -3,88 +3,68 @@
 #include "stat.h"
 #include "uthread.h"
 
-uint TEMP;
+#define N 100 // buffer size;
+
+int access;
+struct counting_semaphore* empty;
+struct counting_semaphore* full;
+int buffer[N];
+int in = 0;
+int out = 0;
+
 
 void
-test(int sigNum){
- printf(1,"\n=======================Signal Handler===================================\n Process id:  %d  Signal number: %d \n\n", getpid(),sigNum);
-}
-
-void
-foo(void* arg)
+produces(void* arg)
 {
-  if(uthread_self()%3==0)
-    uthread_join(uthread_self()-1);
-  for(int i= 10; i>0; i--){
-    // printf(1,"tid: %d, i: %d\n",uthread_self(),i);
-    // uthread_sleep(13);
-    uthread_sleep(13);
+  for(int i = 1; i<1001; i++){
+      down(empty);
+      bsem_dwon(access);
+      buffer[in] = i;
+      printf(1, "producer %d produced %d and inserted it at buffer[%d].\n",uthread_self(),i,in);
+      in = (in + 1) % N;
+      bsem_up(access);
+      up(full);
   }
-  printf(1,"tid: %d is ending\n",uthread_self());
 }
 
 void
-foo2(void* arg)
-{
-  // if(uthread_self()%5==0)
-    uthread_join(uthread_self()-1);
-  // printf(1,"tid: %d\n",uthread_self());
-  for(int i= 10; i>0; i--){
-    printf(1,"tid: %d, i: %d\n",uthread_self(),i);
+consumer(void* arg) {
+  int item;
+  while(true){
+    down(full);
+    down(access);
+    item = buffer[out];
+    printf(1,"consumer %d consumed %d from buffer[%d].\n",uthread_self(),item,out);
+    out = (out + 1) % N;
+    up(access);
+    up(empty);
+    sleep(item);
+    printf(1,"Thread %d slept for %d ticks.",uthread_self(),item);
   }
-  printf(1,"tid: %d is ending\n",uthread_self());
 }
 
-void
-foo3(void* arg)
-{
 
-  for(int i = 0; i<80; i++){
-      printf(1,"#%d:%d#",uthread_self(),i);
-      uthread_sleep(10);
-  }
-  printf(1,"&&&%d done\n",uthread_self());
-}
 
 
 int
 main(int argc, char *argv[]){
 
-printf(1,"------------------TestEx1----------------- \n");
-// int a = 100;
-int b = 100;
-//int c = 20;
-//uint temp;
-//asm("call next1; next1: popl %%eax; call next2; next2: popl %%ebx;subl %%ebx,%%eax; movl %%eax, %0;" :"=r"(temp) : :"%eax","%ebx");
-// asm("movl %%esp, %0;" :"=r"(temp) : :);
-// printf(1,"in main: temp: %x\n",temp);
-// asm("pushl $123;call next; next: popl %eax; addl $12, %eax; pushl %eax;jmp foo;");
-// asm("movl %%esp, %0;" :"=r"(temp) : :);
-// printf(1,"in main: temp: %x\n",temp);
+printf(1,"------------------TEXTING----------------- \n");
+
+
 uthread_init();
-for(int i=0;i<64;i++){
-  uthread_create(foo3,&b);
+access = bsem_alloc();
+empty = csem_alloc(N);
+full = csem_alloc(0);
+
+for(int i = 0; i<3; i++){
+  uthread_create(consumer,0);
 }
-uthread_join(63);
-uthread_sleep(1000);
+
+produces(0);
+
+
 printf(1,"-----------------main thread is exiting--------------- \n");
-
 uthread_exit();
-
 printf(1,"-----------------should not be here!!!--------------- \n");
-
-
-// for(int i=0; i < 100; i++){
-//   if(i%2 == 0)
-//     uthread_create(foo,&b);
-//   else
-//     uthread_create(foo2,&b);
-//   uthread_sleep(5);
-// }
-//foo(&c);
-//for(;;){}
-// for(int i = 0; i < 10; i++){
-//   sleep(1);
-// }
-// uthread_exit();
 }

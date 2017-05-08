@@ -26,8 +26,8 @@ uthread_init()
   ut->pid = getpid();
   ut->state = RUNNING;
   ut->tstack = 0; //the main thread is using the regular user's stack, no need to free at uthread_exit
-  ut->uttable_index = 0;
-  living_threads++; 
+  //ut->uttable_index = 0;
+  living_threads++;
   current = ut;
   signal(SIGALRM, (sighandler_t) uthread_schedule_wrapper);
   sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
@@ -45,7 +45,7 @@ uthread_create(void (*start_func)(void*), void* arg)
     if(ut->state == UNUSED)
       goto found;
   }
-  printf(1,"@@@@@@@@@@@@@NO ROOM FOR MORE THREADS!!!");
+  printf(1,"!!!NO ROOM FOR MORE THREADS!!!\n");
   return -1;
 
   found:
@@ -53,7 +53,7 @@ uthread_create(void (*start_func)(void*), void* arg)
     ut->tid = nexttid++;
     ut->pid = getpid();
     ut->tf = current->tf;
-    ut->uttable_index = ut-uttable;
+    //ut->uttable_index = ut-uttable;
     // printf(1,"@!! creating %d at uttable[%d] !!@\n",ut->tid,ut->uttable_index);
 
     // Allocate thread stack if no yet allocated.
@@ -157,7 +157,7 @@ uthread_exit()
   // living_threads--;
   // printf(1,"%d $$$is exiting and living_threads is now %d\n",current->tid,living_threads);
 
-  if(--living_threads < 1){
+  if(--living_threads <= 0){
     // printf(1,"%d last thread exiting....\n",current->tid);
     for(struct uthread* ut = uttable; ut < &uttable[MAX_UTHREADS]; ut++){
       if(ut->tstack){
@@ -230,12 +230,12 @@ uthread_join(int tid)
     if(ut->tid == tid && ut->state != UNUSED){
       current->joining = tid;
       current->state = SLEEPING;
-      printf(1, "%d has joined %d\n", current->tid, tid);
+      //printf(1, "%d has joined %d\n", current->tid, tid);
       sigsend(current->pid, SIGALRM);
       return 0;
     }
   }
-  printf(1, "%d has NOT joined %d no such tid\n", current->tid, tid);
+  //printf(1, "%d has NOT joined %d no such tid\n", current->tid, tid);
   alarm(UTHREAD_QUANTA); //allowing alarms again
   return -1;
 }
@@ -290,7 +290,7 @@ bsem_down(int sem)
     alarm(UTHREAD_QUANTA);
   }
   else{
-    bsemtable[sem]->waiting[current->uttable_index] = current;
+    bsemtable[sem]->waiting[current-uttable] = current;
     uthread_sleep(0);
   }
 }
