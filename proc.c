@@ -564,12 +564,10 @@ sigreturn()
 {
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
-  // cprintf("\nin sigreturn before restore: proc->tf->ebp + 8: %x\n", proc->tf->ebp+8);
   if(memmove(proc->tf,(void*)(proc->tf->ebp + 8),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
     if (! has_lk) release(&ptable.lock);
     return -1;
   }
-  // cprintf("\nin sigreturn after restore: proc->tf->esp: %x, proc->tf->eip: %x\n", proc->tf->esp,proc->tf->eip);
   if (! has_lk) release(&ptable.lock);
   return 0;
 }
@@ -590,7 +588,6 @@ setup_frame(int signum)
   // backup trapframe on user stack
   user_esp -= sizeof(struct trapframe);
   memmove((void*)(user_esp),proc->tf,sizeof(struct trapframe));
-  // cprintf("\nin setup_frame: user_esp: %x\n", user_esp);
 
   // push first argument to signal handler (signum)
   user_esp -= sizeof(int);
@@ -649,18 +646,15 @@ do_signals(struct trapframe* tf)
 int
 alarm(int time)
 {
-  // cprintf("in alarm \n");
   int temp_alarm = 0;
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
-  // cprintf("in alarm with lock\n");
   if(time)
     temp_alarm = ticks+time;
   else if(proc->pending & pows[SIGALRM])
     proc->pending ^=  pows[SIGALRM];//cancel an already pending SIGALARM signal
   proc->alarm = temp_alarm;
   if (! has_lk) release(&ptable.lock);
-  // cprintf("in alarm lock released\n");
   return (temp_alarm);
 }
 
