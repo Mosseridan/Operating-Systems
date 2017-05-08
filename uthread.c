@@ -128,7 +128,7 @@ uthread_schedule(struct trapframe* tf)
   //  free((void*)current->tstack);
   current = ut;
   ut->state = RUNNING;
-  printf(1, "in uthread_schedule: switching %d:%d -> %d:%d\n", current->tid, current->state, ut->tid,ut->state);
+  // printf(1, "in uthread_schedule: switching %d:%d -> %d:%d\n", current->tid, current->state, ut->tid,ut->state);
   alarm(UTHREAD_QUANTA);
   return;
   // if(ut->state != RUNNABLE && living_threads){
@@ -282,8 +282,8 @@ bq_free(struct bound_queue* bq){
 int
 bq_enqueue(struct bound_queue* bq, void* item)
 {
-  if(bq->in == bq->out)
-    return -1;
+  // if(bq->in == bq->out)
+  //   return -1;
   int place = bq->in;
   bq->queue[place] = item;
   bq->in = (bq->in + 1) % bq->size;
@@ -359,14 +359,19 @@ void bsem_up(int sem)
   //     return;
   //   }
   ut = (struct uthread*)bq_dequeue(bsemtable[sem]->waiting);
+  // printf(1,"######### in bsem_up: ut: %d up\n",ut);
   if(ut){
-    ut->wakeup = uptime();
+    // printf(1,"######### in bsem_up: waking %d up\n",ut->tid);
+    ut->state = RUNNABLE;
+    //ut->wakeup = uptime();
     alarm(UTHREAD_QUANTA);
+    //sigsend(ut->pid, SIGALRM);
   }
   else{
     // there are no waiting threads
     bsemtable[sem]->s = 1;
     alarm(UTHREAD_QUANTA);
+    //sigsend(ut->pid, SIGALRM);
   }
 }
 

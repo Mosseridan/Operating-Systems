@@ -29,23 +29,21 @@ void
 consumer(void* arg) {
   int item;
   while(1){
-    printf(1,"@@@@@@@@@@in consumer with tid %d\n",uthread_self());
+    // printf(1,"@@@@@@@@@@in consumer with tid %d\n",uthread_self());
     down(full);
-    printf(1,"@@@@@@@@@@in consumer with tid %d dwon full SUCCESS\n",uthread_self());
+    // printf(1,"@@@@@@@@@@in consumer with tid %d dwon full SUCCESS\n",uthread_self());
     bsem_down(access);
-    printf(1,"@@@@@@@@@@in consumer with tid %d dwon access SUCCESS\n",uthread_self());
+    // printf(1,"@@@@@@@@@@in consumer with tid %d dwon access SUCCESS\n",uthread_self());
     item = (int)bq_dequeue(bq);
     printf(1,"consumer %d consumed %d.\n",uthread_self(),item);
     bsem_up(access);
-    printf(1,"@@@@@@@@@@in consumer with tid %d up access SUCCESS\n",uthread_self());
+    // printf(1,"@@@@@@@@@@in consumer with tid %d up access SUCCESS\n",uthread_self());
     up(empty);
-    printf(1,"@@@@@@@@@@in consumer with tid %d up full SUCCESS\n",uthread_self());
+    // printf(1,"@@@@@@@@@@in consumer with tid %d up full SUCCESS\n",uthread_self());
     sleep(item);
     printf(1,"Thread %d slept for %d ticks.",uthread_self(),item);
   }
 }
-
-
 
 
 int
@@ -63,14 +61,12 @@ bq = bq_alloc(N);
 
 for(int i = 0; i<3; i++){
   consumers[i] = uthread_create(consumer,0);
-  printf(1,"!!!!!!!!!!!!created consumer %d with tid %d\n",i,consumers[i]);
+  printf(1,"created consumer with tid: %d\n",consumers[i]);
 }
 
-uthread_join(uthread_create(producer,0));
-
-//producer(0);
-
-
+int prod = uthread_create(producer,0);
+printf(1,"created producer with tid: %d\n",prod);
+uthread_join(prod);
 
 for(int i = 0; i<3; i++){
   uthread_join(consumers[i]);
