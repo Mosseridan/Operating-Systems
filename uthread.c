@@ -189,6 +189,7 @@ bq_alloc(int size){
     return 0;
   bq->in = 0;
   bq->out = 0;
+  bq->contains = 0;
   bq->size = size;
   if((bq->queue = malloc(sizeof(void*)*size)) == 0)
     return 0;
@@ -203,22 +204,27 @@ bq_free(struct bound_queue* bq){
   }
 }
 
-int
+void
 bq_enqueue(struct bound_queue* bq, void* item)
 {
-  int place = bq->in;
-  bq->queue[place] = item;
+  if(bq->contains == bq->size){
+    return;
+  }
+  bq->queue[bq->in] = item;
   bq->in = (bq->in + 1) % bq->size;
-  return place;
+  bq->contains++;
 }
 
 void*
 bq_dequeue(struct bound_queue* bq)
 {
-  if(bq->in == bq->out)
+  if(!bq->contains){
     return 0;
+  }
   void* item = bq->queue[bq->out];
-  bq->out= (bq->out + 1) % bq->size;
+  bq->queue[bq->out] = 0;
+  bq->out = (bq->out + 1) % bq->size;
+  bq->contains --;
   return item;
 }
 

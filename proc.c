@@ -270,6 +270,7 @@ wait(void)
         p->pending = 0;
         for(int sig = 0; sig < NUMSIG; sig++)
           p->sighandlers[sig] = SIG_DFL;
+        p->signal = 0;
         p->alarm = 0;
         release(&ptable.lock);
         return pid;
@@ -565,9 +566,11 @@ sigreturn()
   int has_lk = holding(&ptable.lock);
   if (!has_lk) acquire(&ptable.lock);
   if(memmove(proc->tf,(void*)(proc->tf->ebp + 8),sizeof(struct trapframe)) < 0){ // backup trapframe on user stack
+    proc->signal = 0;
     if (! has_lk) release(&ptable.lock);
     return -1;
   }
+  proc->signal = 0;
   if (! has_lk) release(&ptable.lock);
   return 0;
 }
@@ -630,7 +633,7 @@ handle_signal(int signum)
 void
 do_signals(struct trapframe* tf)
 {
-  if(proc == 0 || proc->pending == 0 || (tf->cs &  3) != DPL_USER)
+  if(proc == 0 || proc->pending == 0 || proc->signal || (tf->cs &  3) != DPL_USER)
     return;
 
   for(int signum=0; signum<NUMSIG; signum++){

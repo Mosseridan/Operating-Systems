@@ -8,23 +8,17 @@ enum tstate { UNUSED, SLEEPING, RUNNABLE, RUNNING};//, ZOMBIE, JOINNING };
 struct uthread {
   uint tid;   //thread id
   uint tstack; //pointer to the thread's stack
-  //uint uttable_index;
   enum tstate state; //thread state (UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE)
   struct trapframe tf; //the trapframe backed up on the user stack
   uint pid; //the pid of the process running this thread
   uint joining;
-  //uint acquiring;
   int wakeup; //the time for the thread to wake-up if sleeping
 };
-
-// struct bsem{
-//   uint s;
-//   struct uthread* waiting[MAX_UTHREADS];
-// };
 
 struct bound_queue{
   int in;
   int out;
+  int contains;
   int size;
   void** queue;
 };
@@ -52,7 +46,7 @@ int uthread_sleep(int);
 
 struct bound_queue* bq_alloc(int);
 void bq_free(struct bound_queue*);
-int bq_enqueue(struct bound_queue*, void*);
+void bq_enqueue(struct bound_queue*, void*);
 void* bq_dequeue(struct bound_queue*);
 
 

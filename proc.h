@@ -65,6 +65,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   int pending;                 // currently unhandled (pending) signals
   void* sighandlers[NUMSIG];   // pointers to signal handlers.
+  uint signal;                 // currntly handling a signal
   uint alarm;                  // time to be alarmed (0 if no alarms needed)
 };
 
