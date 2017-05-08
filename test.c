@@ -8,21 +8,19 @@
 int access;
 struct counting_semaphore* empty;
 struct counting_semaphore* full;
-int buffer[N];
-int in = 0;
-int out = 0;
-
+struct bound_queue* bq;
 
 void
-produces(void* arg)
+producer(void* arg)
 {
   for(int i = 1; i<1001; i++){
       down(empty);
-      bsem_dwon(access);
-      buffer[in] = i;
-      printf(1, "producer %d produced %d and inserted it at buffer[%d].\n",uthread_self(),i,in);
-      in = (in + 1) % N;
+      bsem_down(access);
+      // printf(1,"#########in producer with tid %d down access SUCESS\n",uthread_self());
+      bq_enqueue(bq,(void*)i);
+      printf(1, "producer %d produced %d.\n",uthread_self(),i);
       bsem_up(access);
+      // printf(1,"#########in producer with tid %d up access SUCESS\n",uthread_self());
       up(full);
   }
 }
@@ -30,14 +28,18 @@ produces(void* arg)
 void
 consumer(void* arg) {
   int item;
-  while(true){
+  while(1){
+    printf(1,"@@@@@@@@@@in consumer with tid %d\n",uthread_self());
     down(full);
-    down(access);
-    item = buffer[out];
-    printf(1,"consumer %d consumed %d from buffer[%d].\n",uthread_self(),item,out);
-    out = (out + 1) % N;
-    up(access);
+    printf(1,"@@@@@@@@@@in consumer with tid %d dwon full SUCCESS\n",uthread_self());
+    bsem_down(access);
+    printf(1,"@@@@@@@@@@in consumer with tid %d dwon access SUCCESS\n",uthread_self());
+    item = (int)bq_dequeue(bq);
+    printf(1,"consumer %d consumed %d.\n",uthread_self(),item);
+    bsem_up(access);
+    printf(1,"@@@@@@@@@@in consumer with tid %d up access SUCCESS\n",uthread_self());
     up(empty);
+    printf(1,"@@@@@@@@@@in consumer with tid %d up full SUCCESS\n",uthread_self());
     sleep(item);
     printf(1,"Thread %d slept for %d ticks.",uthread_self(),item);
   }
@@ -49,6 +51,7 @@ consumer(void* arg) {
 int
 main(int argc, char *argv[]){
 
+int consumers[3];
 printf(1,"------------------TEXTING----------------- \n");
 
 
@@ -56,13 +59,26 @@ uthread_init();
 access = bsem_alloc();
 empty = csem_alloc(N);
 full = csem_alloc(0);
+bq = bq_alloc(N);
 
 for(int i = 0; i<3; i++){
-  uthread_create(consumer,0);
+  consumers[i] = uthread_create(consumer,0);
+  printf(1,"!!!!!!!!!!!!created consumer %d with tid %d\n",i,consumers[i]);
 }
 
-produces(0);
+uthread_join(uthread_create(producer,0));
 
+//producer(0);
+
+
+
+for(int i = 0; i<3; i++){
+  uthread_join(consumers[i]);
+}
+
+bsem_free(access);
+csem_free(empty);
+csem_free(full);
 
 printf(1,"-----------------main thread is exiting--------------- \n");
 uthread_exit();

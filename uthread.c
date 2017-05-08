@@ -7,6 +7,7 @@ struct uthread* current;
 struct uthread uttable[MAX_UTHREADS];
 
 struct bsem* bsemtable[MAX_BSEM];
+//int bsemtable[MAX_BSEM];
 
 void
 uthread_schedule_wrapper(int signum){
@@ -106,14 +107,10 @@ uthread_schedule(struct trapframe* tf)
       ut->wakeup = 0;
       // printf(1, "%d: changing this to runnable in wakeup\n",ut->tid);
       ut->state = RUNNABLE;
+      break;
     // } else if(ut->state == SLEEPING){
         // printf(1,"%d is still waiting for a wakeup call: %d %d", ut->tid, ut->wakeup, uptime());
     } else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
-      // printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
-      free((void*)ut->tstack);
-      ut->tstack = 0;
-    }
-    else if(ut->state == UNUSED && ut->tstack && ut->tid != current->tid && ut->tid != 1){
       // printf(1,"@$$@freeing stack for %d at uttable[%d]\n",ut->tid,ut-uttable);
       free((void*)ut->tstack);
       ut->tstack = 0;
@@ -131,7 +128,7 @@ uthread_schedule(struct trapframe* tf)
   //  free((void*)current->tstack);
   current = ut;
   ut->state = RUNNING;
-  //printf(1, "in uthread_schedule: switching %d:%d -> %d:%d\n", current->tid, current->state, ut->tid,ut->state);
+  printf(1, "in uthread_schedule: switching %d:%d -> %d:%d\n", current->tid, current->state, ut->tid,ut->state);
   alarm(UTHREAD_QUANTA);
   return;
   // if(ut->state != RUNNABLE && living_threads){
@@ -260,13 +257,64 @@ int uthread_sleep(int ticks)
   return 0;
 }
 
+
+struct bound_queue*
+bq_alloc(int size){
+  struct bound_queue* bq;
+  if((bq = malloc(sizeof(struct bound_queue))) == 0)
+    return 0;
+  bq->in = 0;
+  bq->out = 0;
+  bq->size = size;
+  if((bq->queue = malloc(sizeof(void*)*size)) == 0)
+    return 0;
+  return bq;
+}
+
+void
+bq_free(struct bound_queue* bq){
+  if(bq && bq->queue){
+    free(bq->queue);
+    free(bq);
+  }
+}
+
+int
+bq_enqueue(struct bound_queue* bq, void* item)
+{
+  if(bq->in == bq->out)
+    return -1;
+  int place = bq->in;
+  bq->queue[place] = item;
+  bq->in = (bq->in + 1) % bq->size;
+  return place;
+}
+
+void*
+bq_dequeue(struct bound_queue* bq)
+{
+  if(bq->in == bq->out)
+    return 0;
+  void* item = bq->queue[bq->out];
+  bq->out= (bq->out + 1) % bq->size;
+  return item;
+}
+
 int
 bsem_alloc()
 {
+  // for(int sem = 0; sem < MAX_BSEM; sem++){
+  //   if(!bsemtable[sem] && ((bsemtable[sem] = malloc(sizeof(struct bsem))) > 0)){
+  //     bsemtable[sem]->s = 1;
+  //     return sem;
+  //   }
+  // }
+  // return -1;
   for(int sem = 0; sem < MAX_BSEM; sem++){
     if(!bsemtable[sem] && ((bsemtable[sem] = malloc(sizeof(struct bsem))) > 0)){
-      bsemtable[sem]->s = 1;
-      return sem;
+        bsemtable[sem]->waiting = bq_alloc(MAX_UTHREADS);
+        bsemtable[sem]->s = 1;
+        return sem;
     }
   }
   return -1;
@@ -276,6 +324,7 @@ void
 bsem_free(int sem)
 {
   if(bsemtable[sem]){
+    bq_free(bsemtable[sem]->waiting);
     free(bsemtable[sem]);
     bsemtable[sem] = 0;
   }
@@ -284,35 +333,45 @@ bsem_free(int sem)
 void
 bsem_down(int sem)
 {
+  //printf(1,"%d TRY down bsem %d\n",current->tid,sem);
   alarm(0);
   if(bsemtable[sem]->s){
     bsemtable[sem]->s = 0;
     alarm(UTHREAD_QUANTA);
   }
   else{
-    bsemtable[sem]->waiting[current-uttable] = current;
+    bq_enqueue(bsemtable[sem]->waiting,current);
     uthread_sleep(0);
   }
+  //printf(1,"%d SUCCESS down bsem %d\n",current->tid,sem);
 }
 
 void bsem_up(int sem)
 {
+  struct uthread* ut;
   alarm(0);
-  for(struct uthread* ut = bsemtable[sem]->waiting[0]; ut < bsemtable[sem]->waiting[MAX_UTHREADS]; ut++){
-    if(ut){ // there is a thread waiting on this semaphore -> wake him up
-      ut->wakeup = uptime();
-      alarm(UTHREAD_QUANTA);
-      return;
-    }
+  //printf(1,"%d up bsem %d\n",current->tid,sem);
+  // for(struct uthread* ut = bsemtable[sem]->waiting[0]; ut < bsemtable[sem]->waiting[MAX_UTHREADS]; ut++){
+  //   if(ut){ // there is a thread waiting on this semaphore -> wake him up
+  //     ut->wakeup = uptime();
+  //     sigsend(ut->pid, SIGALRM);//in order to ensure that the trapframe of the main thread is backed up on the user's stack as a side effect of the signal handling.
+  //     //alarm(UTHREAD_QUANTA);
+  //     return;
+  //   }
+  ut = (struct uthread*)bq_dequeue(bsemtable[sem]->waiting);
+  if(ut){
+    ut->wakeup = uptime();
+    alarm(UTHREAD_QUANTA);
   }
-  // there are no waiting threads
-  bsemtable[sem]->s = 1;
-  alarm(UTHREAD_QUANTA);
-  return;
+  else{
+    // there are no waiting threads
+    bsemtable[sem]->s = 1;
+    alarm(UTHREAD_QUANTA);
+  }
 }
 
 struct counting_semaphore*
-alloc_csem(int init_val)
+csem_alloc(int init_val)
 {
   struct counting_semaphore *sem;
   if((sem = malloc(sizeof(struct counting_semaphore))) == 0)
@@ -327,12 +386,13 @@ alloc_csem(int init_val)
   return sem;
 }
 
-void free_csem(struct counting_semaphore* sem)
+void csem_free(struct counting_semaphore* sem)
 {
   bsem_free(sem->s1);
   bsem_free(sem->s2);
   free(sem);
 }
+
 void
 down(struct counting_semaphore* sem){
   bsem_down(sem->s2);
