@@ -13,7 +13,7 @@ struct bound_queue* bq;
 void
 producer(void* arg)
 {
-  for(int i = 1; i<1001; i++){
+  for(int i = 1; i<1004; i++){
       down(empty);
       bsem_down(access);
       // printf(1,"#########in producer with tid %d down access SUCESS\n",uthread_self());
@@ -23,6 +23,7 @@ producer(void* arg)
       // printf(1,"#########in producer with tid %d up access SUCESS\n",uthread_self());
       up(full);
   }
+  printf(1,"producer %d exiting\n",uthread_self());
 }
 
 void
@@ -35,14 +36,20 @@ consumer(void* arg) {
     bsem_down(access);
     // printf(1,"@@@@@@@@@@in consumer with tid %d dwon access SUCCESS\n",uthread_self());
     item = (int)bq_dequeue(bq);
+    if(item > 1000){
+      bsem_up(access);
+      up(empty);
+      break;
+    }
     printf(1,"consumer %d consumed %d.\n",uthread_self(),item);
     bsem_up(access);
     // printf(1,"@@@@@@@@@@in consumer with tid %d up access SUCCESS\n",uthread_self());
     up(empty);
     // printf(1,"@@@@@@@@@@in consumer with tid %d up full SUCCESS\n",uthread_self());
     sleep(item);
-    printf(1,"Thread %d slept for %d ticks.",uthread_self(),item);
+    printf(1,"Thread %d slept for %d ticks.\n",uthread_self(),item);
   }
+  printf(1,"consumer %d exiting\n",uthread_self());
 }
 
 
