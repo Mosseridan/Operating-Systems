@@ -33,7 +33,7 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-  
+
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
@@ -57,7 +57,7 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table 
+    // be further restricted by the permissions in the page table
     // entries, if necessary.
     *pde = v2p(pgtab) | PTE_P | PTE_W | PTE_U;
   }
@@ -72,7 +72,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
-  
+
   a = (char*)PGROUNDDOWN((uint)va);
   last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
   for(;;){
@@ -94,7 +94,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 // current process's page table during system calls and interrupts;
 // page protection bits prevent user code from using the kernel's
 // mappings.
-// 
+//
 // setupkvm() and exec() set up every page table like this:
 //
 //   0..KERNBASE: user memory (text+data+stack+heap), mapped to
@@ -102,7 +102,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 //   KERNBASE..KERNBASE+EXTMEM: mapped to 0..EXTMEM (for I/O space)
 //   KERNBASE+EXTMEM..data: mapped to EXTMEM..V2P(data)
 //                for the kernel's instructions and r/o data
-//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP, 
+//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP,
 //                                  rw data + free physical memory
 //   0xfe000000..0: mapped direct (devices such as ioapic)
 //
@@ -137,7 +137,7 @@ setupkvm(void)
   if (p2v(PHYSTOP) > (void*)DEVSPACE)
     panic("PHYSTOP too high");
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
-    if(mappages(pgdir, k->virt, k->phys_end - k->phys_start, 
+    if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0)
       return 0;
   return pgdir;
@@ -182,7 +182,7 @@ void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
-  
+
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
   mem = kalloc();
@@ -237,7 +237,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+     (pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
   }
   return newsz;
 }
@@ -377,10 +377,79 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
 
+
+
+pte_t*
+swapin(pte_t* pte)
+{
+  char* page;
+  int offset;
+
+  for(offset = 0; offset < MAX_TOTAL_PAGES; offset++){
+    if(proc->pages[offset] == PTE_ADDR(*pte))
+      break;
+  }
+
+  if(offset == MAX_TOTAL_PAGES)
+    panic("SWAPIN FAILED! given page was not swaped out\n");
+
+  if((page = kalloc()) == 0)
+    panic("SWAPIN FAILED! failed to allocate physical memory\n");
+
+  if(readFromSwapFile(proc, page, offset*PGSIZE, PGSIZE) < 0)
+    panic("SWAPIN FAILED! failed to read from swapFile\n");
+
+  proc->pages[offset] = 0; // remove from swaped out pages record.
+  *pte = ((v2p(page) & ~PTE_PG) | PTE_P); // set new PPN, mark that this page is no longer swaped out and is present.
+  return pte;
+}
+
+
+void
+swapout(pte_t *pte)
+{
+  char* page;
+  int offset;
+
+  if(!(*pte & PTE_U))
+    panic("SWAPOUT FAILED! trying to swapout a kernel page\n");
+
+
+  page = (char*)p2v(PTE_ADDR(*pte));
+  for(offset = 0; offset < MAX_TOTAL_PAGES; offset++){
+    if(!proc->pages[offset]){
+      break;
+    }
+  }
+
+  if(offset == MAX_TOTAL_PAGES)
+    panic("SWAPOUT FAILED! MAX_TOTAL_PAGES pages are already in swapFile\n");
+
+  if(writeToSwapFile(proc, page, offset*PGSIZE, PGSIZE) < 0)
+    panic("SWAPOUT FAILED! failed to write to swapFile\n");
+
+  proc->pages[offset] = PTE_ADDR(*pte); // record that the this page was swaped out.
+  *pte = ((*pte & ~PTE_P) | PTE_PG); // mark that this page is no longer present and was swaped out.
+  kfree((char*)pte); // free page from physical memory.
+  lcr3(v2p(proc->pgdir)); // refresh TLB
+}
+
+
+uint
+handle_pgflt(void* va)
+{
+  pte_t *pte = walkpgdir((pde_t*)proc->pgdir,va,0);
+  if(!pte || (*pte & PTE_P) || !(*pte & PTE_PG) || !(*pte & PTE_U)) // if this page is swaped out,
+    return 0;
+
+  return (uint)swapin(pte); // swap it back in
+}
+
+
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.

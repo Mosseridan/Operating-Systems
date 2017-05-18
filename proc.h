@@ -1,3 +1,4 @@
+
 // Segments in proc->gdt.
 #define NSEGS     7
 
@@ -10,7 +11,7 @@ struct cpu {
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  
+
   // Cpu-local storage variables; see below
   struct cpu *cpu;
   struct proc *proc;           // The currently-running process.
@@ -49,7 +50,17 @@ struct context {
   uint eip;
 };
 
+// TODO: remove this
+// // maintains track of the pages moved to swapFile.
+// // count is the number of pages currntly in swapFile.
+// // pages is an array of MAX_TOTAL_PAGES ints each entry is a PPN of a page currntly in swapFile or 0.
+// struct pgmd {
+//   int count;
+//   int pages[MAX_TOTAL_PAGES];
+// };
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+
 
 // Per-process state
 struct proc {
@@ -68,8 +79,9 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   //Swap file. must initiate with create swap file
-  struct file *swapFile;			//page file
-
+  struct file *swapFile;			 // page file
+  uint pages[MAX_TOTAL_PAGES];  // paging metadata
+  //  struct spinlock lock;      // spinlock for synchronization
 };
 
 // Process memory is laid out contiguously, low addresses first:
