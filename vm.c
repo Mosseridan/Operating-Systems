@@ -11,6 +11,17 @@ extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 struct segdesc gdt[NSEGS];
 
+#ifndef NONE
+  char* selectpage(struct pageselect* ps);
+  void addpage(struct pageselect* ps, char* va);
+  void removepage(struct pageselect* ps, char* va);
+  int initSwapFile(struct proc* p);
+  int writePageToSwapFile(struct proc* p, char* page);
+  int readPageFromSwapFile(struct proc* p, char* page);
+  char* swapin(char* va);
+  void swapout(char* va);
+#endif
+
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -218,15 +229,23 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
-allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
+allocuvm(pde_t* pgdir,uint oldsz, uint newsz)
 {
   char *mem;
   uint a;
-
+  #ifdef DEBUG
+			cprintf("@in allocuvm: pid %d oldsz %d newsz %d\n",proc->pid,oldsz,newsz);
+	#endif
   if(newsz >= KERNBASE)
     return 0;
   if(newsz < oldsz)
     return oldsz;
+  #ifndef NONE
+  if(proc->pid > 2 && newsz > MAX_TOTAL_PAGES*PGSIZE){ // process trying to extend beyond MAX_TOTAL_PAGES.
+    cprintf("trying to allocate more then MAX_TOTAL_PAGES for process %d",proc->pid);
+    return 0;
+  }
+  #endif
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
@@ -237,7 +256,11 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-     (pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    #ifndef NONE
+      if(proc->pid > 2)
+        addpage(&proc->ps, (char*)a);
+    #endif
   }
   return newsz;
 }
@@ -251,7 +274,9 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   pte_t *pte;
   uint a, pa;
-
+  #ifdef DEBUG
+			cprintf("@in deallocuvm: pid %d oldsz %d newsz %d\n",proc->pid,oldsz,newsz);
+	#endif
   if(newsz >= oldsz)
     return oldsz;
 
@@ -266,8 +291,17 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       kfree(v);
+      #ifndef NONE
+        if(proc->pid > 2)
+          removepage(&proc->ps, (char*)a);
+      #endif
       *pte = 0;
     }
+    #ifndef NONE
+      else if(proc->pid > 2 && *pte & PTE_PG){
+        *pte = 0;
+      }
+    #endif
   }
   return newsz;
 }
@@ -297,42 +331,78 @@ void
 clearpteu(pde_t *pgdir, char *uva)
 {
   pte_t *pte;
-
+  #ifdef DEBUG
+     cprintf("@in clearpteu: pid: %d uva %d\n",proc->pid,(uint)uva);
+  #endif
   pte = walkpgdir(pgdir, uva, 0);
   if(pte == 0)
     panic("clearpteu");
+  #ifndef NONE
+    if(!(*pte & PTE_P) && *pte & PTE_PG)
+      swapin(uva);
+    removepage(&proc->ps,uva);
+  #endif
   *pte &= ~PTE_U;
+
 }
 
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(struct proc* parent, struct proc* child)
 {
-  pde_t *d;
+  uint sz = parent->sz;
   pte_t *pte;
   uint pa, i, flags;
   char *mem;
 
-  if((d = setupkvm()) == 0)
+  #ifdef DEBUG
+	   cprintf("@in copyuvm: parent: %d child %d\n",parent->pid,child->pid);
+  #endif
+  if((child->pgdir = setupkvm()) == 0)
     return 0;
+
+  #ifndef NONE
+    clearps(&child->ps);
+  #endif
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
+    if((pte = walkpgdir(parent->pgdir, (void *) i, 0)) == 0)
+      panic("in copyuvm: paren_pte should exist");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
+
+    if(!(*pte & PTE_P)){
+      #ifdef NONE
+        panic("in copyuvm: page not present");
+      #endif
+      #ifndef NONE
+        if(parent->pid <= 2 || !(*pte & PTE_PG))  // this page is swaped out
+          panic("in copyuvm: page not present");
+        swapin((char*)i);
+      #endif
+    }
+    #ifdef DEBUG
+		  cprintf("@in copyuvm: copying page %d:%d from parent %d pysical memory to child %d pysical memory\n",i/PGSIZE,i,parent->pid,child->pid);
+		#endif
     if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)p2v(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
+    if(mappages(child->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0)
       goto bad;
+    #ifndef NONE
+      if(child->pid > 2 && (*pte & PTE_U))
+        addpage(&child->ps,(char*)i);
+    #endif
   }
-  return d;
+  #ifdef DEBUG
+			cprintf("@in copyuvm: parent: %d child %d ENDED!\n",parent->pid,child->pid);
+	#endif
+
+
+  return child->pgdir;
 
 bad:
-  freevm(d);
+  freevm(child->pgdir);
   return 0;
 }
 
@@ -377,75 +447,315 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+#ifndef NONE
 
-
-
-pte_t*
-swapin(pte_t* pte)
-{
-  char* page;
-  int offset;
-
-  for(offset = 0; offset < MAX_TOTAL_PAGES; offset++){
-    if(proc->pages[offset] == PTE_ADDR(*pte))
-      break;
+  int
+  initSwapFile(struct proc* p)
+  {
+    if(p->swapFile)
+      return 0;
+    for(int i = 0; i < MAX_PSYC_PAGES; i++)
+      p->swapmeta[i] = -1;
+    return createSwapFile(p);
   }
 
-  if(offset == MAX_TOTAL_PAGES)
-    panic("SWAPIN FAILED! given page was not swaped out\n");
-
-  if((page = kalloc()) == 0)
-    panic("SWAPIN FAILED! failed to allocate physical memory\n");
-
-  if(readFromSwapFile(proc, page, offset*PGSIZE, PGSIZE) < 0)
-    panic("SWAPIN FAILED! failed to read from swapFile\n");
-
-  proc->pages[offset] = 0; // remove from swaped out pages record.
-  *pte = ((v2p(page) & ~PTE_PG) | PTE_P); // set new PPN, mark that this page is no longer swaped out and is present.
-  return pte;
-}
-
-
-void
-swapout(pte_t *pte)
-{
-  char* page;
-  int offset;
-
-  if(!(*pte & PTE_U))
-    panic("SWAPOUT FAILED! trying to swapout a kernel page\n");
-
-
-  page = (char*)p2v(PTE_ADDR(*pte));
-  for(offset = 0; offset < MAX_TOTAL_PAGES; offset++){
-    if(!proc->pages[offset]){
-      break;
+  int
+  writePageToSwapFile(struct proc* p, char* page)
+  {
+    for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
+      if(p->swapmeta[i] == -1){
+        p->swapmeta[i] = (uint)page;
+        return writeToSwapFile(p, page, i*PGSIZE, PGSIZE);
+      }
     }
+    return -1;
   }
 
-  if(offset == MAX_TOTAL_PAGES)
-    panic("SWAPOUT FAILED! MAX_TOTAL_PAGES pages are already in swapFile\n");
+  int
+  readPageFromSwapFile(struct proc* p, char* page)
+  {
+    for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
+      if(p->swapmeta[i] == (uint)page){
+        p->swapmeta[i] = -1;
+        return readFromSwapFile(p, page, i*PGSIZE, PGSIZE);
+      }
+    }
+    return -1;
+  }
 
-  if(writeToSwapFile(proc, page, offset*PGSIZE, PGSIZE) < 0)
-    panic("SWAPOUT FAILED! failed to write to swapFile\n");
+  char*
+  swapin(char* va)
+  {
+    int flags;
+    char* mem;
+    pte_t* pte;
 
-  proc->pages[offset] = PTE_ADDR(*pte); // record that the this page was swaped out.
-  *pte = ((*pte & ~PTE_P) | PTE_PG); // mark that this page is no longer present and was swaped out.
-  kfree((char*)pte); // free page from physical memory.
-  lcr3(v2p(proc->pgdir)); // refresh TLB
-}
+    va = (char*)PGROUNDDOWN((uint)va);
+    #ifdef DEBUG
+			cprintf("@in swapin: pid: %d va: %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	   #endif
+    if((uint)va > proc->sz)
+      panic("SWAPIN FAILED! trying to swapin none private page");
+    if((pte = walkpgdir(proc->pgdir, va, 0)) == 0)
+      panic("SWAPIN FAILED! trying to swapin a none exsiting page");
+    if(*pte & PTE_P)
+      panic("SWAPIN FAILED! trying to swapin a page already present");
+    if(!(*pte & PTE_U))
+      panic("SWAPIN FAILED! trying to swapin a none user page");
+    if((mem = kalloc()) == 0)
+      panic("SWAPIN FAILED! out of memory\n"); // if we  are changing panics later to cprintf  we need to remove page firstt.
+    memset(mem, 0, PGSIZE);
+    if(!proc->swapFile)
+      panic("SWAPIN FAILED! process has no swapFile\n");
+    flags = ((PTE_FLAGS(*pte) | PTE_P) & ~PTE_PG);
+    *pte = v2p(mem) | flags;
+    if(readPageFromSwapFile(proc, va) < 0)
+      panic("SWAPIN FAILED! failed to read from swapFile\n");
+    addpage(&proc->ps,va); //record that this page is being added to pysical memory
+    // cprintf("in swapin: pid: %d va: %d:%d ENDED!\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+    return va;
+  }
 
 
-uint
-handle_pgflt(void* va)
-{
-  pte_t *pte = walkpgdir((pde_t*)proc->pgdir,va,0);
-  if(!pte || (*pte & PTE_P) || !(*pte & PTE_PG) || !(*pte & PTE_U)) // if this page is swaped out,
-    return 0;
+  void
+  swapout(char* va)
+  {
+    uint flags;
+    uint pa;
+    char* mem;
+    pte_t* pte;
 
-  return (uint)swapin(pte); // swap it back in
-}
+    va = (char*)PGROUNDDOWN((uint)va);
+    #ifdef DEBUG
+			cprintf("@in swapout: pid: %d va: %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	  #endif
+    // if((uint)va > proc->sz)
+    //   panic("SWAPOUT FAILED! trying to swapout none private page");
+    if((pte = walkpgdir(proc->pgdir, va, 0)) == 0)
+      panic("SWAPOUT FAILED! trying to swapout a none exsiting page");
+    if(!(*pte & PTE_P))
+      panic("SWAPOUT FAILED! trying to swapout a page none present page");
+    if(!(*pte & PTE_U))
+      panic("SWAPOUT FAILED! trying to swapout a none user page");
+    pa = PTE_ADDR(*pte);
+    if(pa == 0)
+      panic("SWAPOUT FAILED! kfree");
+    mem = p2v(pa);
+    initSwapFile(proc);
+    if(writePageToSwapFile(proc, va) < 0)
+      panic("SWAPOUT FAILED! failed to write to swapFile\n");
+    kfree(mem);
+    removepage(&proc->ps,va); //remove this page from pysical memory record
+    flags = ((PTE_FLAGS(*pte) | PTE_PG) & ~PTE_P);
+    *pte = pa | flags;
+    lcr3(v2p(proc->pgdir)); // refresh TLB
+    // cprintf("in swapout: pid: %d va: %d:%d ENDED!\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+  }
 
+
+  int
+  handle_pgflt(uint va)
+  {
+    #ifdef DEBUG
+			cprintf("@in handle_pgflt va: %d:%d\n",(uint)va/PGSIZE,(uint)va);
+	  #endif
+    pte_t *pte = walkpgdir((pde_t*)proc->pgdir,(char*)va,0);
+    if(!pte){
+      cprintf("@in handle_pgflt pte = 0\n");
+      return -1;
+    }
+    else if(*pte & PTE_P){
+      cprintf("@in handle_pgflt page is present\n");
+      return -1;
+    }
+    else if(!(*pte & PTE_PG)){
+      cprintf("@in handle_pgflt page is not swaped out\n");
+      return -1;
+    }
+    else if(!(*pte & PTE_U)){
+      cprintf("@in handle_pgflt page in not allowed for user access\n");
+      return -1;
+    }
+
+    #ifdef DEBUG
+			cprintf("@in handle_pgflt swaping in va: %d:%d\n",(uint)va/PGSIZE,(uint)va);
+	  #endif
+    return (int)swapin((char*)va); // swap it back in
+  }
+
+#endif
+
+
+#ifdef LIFO
+
+  char*
+  selectpage(struct pageselect* ps)
+  {
+    if(!ps->top)
+      panic("(LIFO) trying to select a page while the process has none.");
+    ps->top--;
+    char* va = ps->stack[ps->top];
+    ps->stack[ps->top] = (char*)-1;
+    #ifdef DEBUG
+		  cprintf("@in select: pid: %d selected page %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	  #endif
+    return va;
+  }
+
+  void
+  addpage(struct pageselect* ps, char* va)
+  {
+    va = (char*)PGROUNDDOWN((uint)va);
+    #ifdef DEBUG
+			cprintf("@in addpage: pid: %d adding page %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	  #endif
+    if(ps->top == MAX_PSYC_PAGES){
+      #ifdef DEBUG
+			   cprintf("@in addpage: pid: %d no room for page: %d:%d swaping out another page\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	    #endif
+      swapout(selectpage(ps));
+    }
+    ps->stack[ps->top] = va;
+    ps->top++;
+  }
+
+  void removepage(struct pageselect* ps, char* va)
+  {
+    #ifdef DEBUG
+  		cprintf("@in removepage: pid: %d removing page %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+  	#endif
+    va = (char*)PGROUNDDOWN((uint)va);
+    if(!ps->top){
+      #ifdef DEBUG
+        cprintf("@in removepage: pid: %d  va: %d:%d ps is empty\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+      #endif
+      return;
+    }
+    int page = 0;
+    for(; page <= ps->top; page++){
+      if(ps->stack[page] == va)
+        goto rearage;
+    }
+    return;
+    rearage:
+    for(;page < ps->top; page++)
+      ps->stack[page] = ps->stack[page+1];
+    ps->stack[ps->top] = (char*)-1;
+    ps->top--;
+  }
+
+  void clearps(struct pageselect* ps)
+  {
+    for(int i = 0; i<MAX_PSYC_PAGES;i++)
+      ps->stack[i] = (char*)-1;
+    ps->top = 0;
+  }
+
+#endif
+
+
+#ifdef SCFIFO
+
+  char*
+  selectpage(struct pageselect* ps)
+  {
+    char* va;
+    pte_t* pte;
+    if(!ps->contains)
+      panic("(SCFIFO) trying to select a page while the process has none.");
+    for(;;){
+      va = ps->queue[ps->out];
+      #ifdef DEBUG
+        cprintf("@in select: pid: %d dequeued %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+      #endif
+      ps->queue[ps->out] = (char*)-1;
+      ps->out = (ps->out + 1) % MAX_PSYC_PAGES;
+      ps->contains--;
+      if((pte = walkpgdir(proc->pgdir, va, 0)) == 0)
+        panic("@in select: page sould be present");
+      if(!(*pte & PTE_A))
+        break;
+      *pte &= ~PTE_A;
+      #ifdef DEBUG
+        cprintf("@in select: pid: %d enqueueing back page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+      #endif
+      addpage(ps,va);
+    }
+    #ifdef DEBUG
+		  cprintf("@in select: pid: %d selected page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+	  #endif
+    return va;
+  }
+
+  void
+  addpage(struct pageselect* ps, char* va)
+  {
+    va = (char*)PGROUNDDOWN((uint)va);
+    #ifdef DEBUG
+			cprintf("@in addpage: pid: %d adding page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+	  #endif
+    if(ps->contains == MAX_PSYC_PAGES){
+      #ifdef DEBUG
+			   cprintf("@in addpage: pid: %d no room for page: %d:%d swaping out another page in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+	    #endif
+      swapout(selectpage(ps));
+    }
+    ps->queue[ps->in] = va;
+    ps->in = (ps->in + 1) % MAX_PSYC_PAGES;
+    ps->contains++;
+  }
+
+  void removepage(struct pageselect* ps, char* va)
+  {
+  #ifdef DEBUG
+			cprintf("@in removepage: pid: %d removing page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+	#endif
+    va = (char*)PGROUNDDOWN((uint)va);
+    if(!ps->contains){
+      #ifdef DEBUG
+        cprintf("@in removepage: pid: %d  va: %d:%d ps is empty in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+      #endif
+      return;
+    }
+    int page = 0;
+    for(; page < MAX_PSYC_PAGES; page++){
+      if(ps->queue[page] == va)
+        goto rearage;
+    }
+    return;
+    rearage:
+    #ifdef DEBUG
+  			cprintf("@in removepage: rearage pid: %d removing page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+  	#endif
+    if(page == ps->out){
+      ps->queue[ps->out] = (char*)-1;
+      ps->out = (ps->out + 1) % MAX_PSYC_PAGES;
+      ps->contains--;
+    }
+    else{
+      for(;page != ps->in; page = (page+1)%MAX_PSYC_PAGES)
+        ps->queue[page] = ps->queue[(page+1)%MAX_PSYC_PAGES];
+      ps->queue[ps->in] = (char*)-1;
+      ps->in--;
+      if(ps->in < 0)
+        ps->in += MAX_PSYC_PAGES;
+      ps->contains--;
+    }
+    #ifdef DEBUG
+        cprintf("@in removepage: after rearage pid: %d removed page %d:%d in: %d out: %d contains: %d\n",proc->pid,(uint)va/PGSIZE,(uint)va,ps->in,ps->out,ps->contains);
+    #endif
+  }
+
+  void clearps(struct pageselect* ps)
+  {
+    for(int i = 0; i<MAX_PSYC_PAGES; i++)
+      ps->queue[i] = (char*)-1;
+    ps->in = 0;
+    ps->out = 0;
+    ps->contains = 0;
+  }
+
+#endif
 
 //PAGEBREAK!
 // Blank page.

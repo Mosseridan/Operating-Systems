@@ -18,6 +18,10 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
 
+  #ifdef DEBUG
+			cprintf("@in exec: pid:%d\n",proc->pid);
+	#endif
+
   begin_op();
   if((ip = namei(path)) == 0){
     end_op();

@@ -50,14 +50,22 @@ struct context {
   uint eip;
 };
 
-// TODO: remove this
-// // maintains track of the pages moved to swapFile.
-// // count is the number of pages currntly in swapFile.
-// // pages is an array of MAX_TOTAL_PAGES ints each entry is a PPN of a page currntly in swapFile or 0.
-// struct pgmd {
-//   int count;
-//   int pages[MAX_TOTAL_PAGES];
-// };
+
+#ifdef LIFO
+  struct pageselect{
+    int top;
+    char* stack[MAX_PSYC_PAGES];
+  };
+#endif
+
+#ifdef SCFIFO
+  struct pageselect{
+    int in;
+    int out;
+    int contains;
+    char* queue[MAX_PSYC_PAGES];
+  };
+#endif
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
@@ -79,9 +87,11 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   //Swap file. must initiate with create swap file
-  struct file *swapFile;			 // page file
-  uint pages[MAX_TOTAL_PAGES];  // paging metadata
-  //  struct spinlock lock;      // spinlock for synchronization
+  #ifndef NONE
+    struct file *swapFile;			 // page file
+    struct pageselect ps;       // data for page selection algorithms
+    uint swapmeta[MAX_PSYC_PAGES]; // data on pages in swapfile
+  #endif
 };
 
 // Process memory is laid out contiguously, low addresses first:

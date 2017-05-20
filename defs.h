@@ -8,6 +8,7 @@ struct rtcdate;
 struct spinlock;
 struct stat;
 struct superblock;
+struct pageselect;
 
 // bio.c
 void            binit(void);
@@ -180,15 +181,13 @@ int             deallocuvm(pde_t*, uint, uint);
 void            freevm(pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t*          copyuvm(pde_t*, uint);
+pde_t*          copyuvm(struct proc*, struct proc*);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
-void            clearpteu(pde_t *pgdir, char *uva);
-uint            handle_pgflt(void *va);
-// pte_t*          swapin(pte_t* pte);
-// void            swapout(pte_t* pte);
-
+void            clearpteu(pde_t*, char*);
+int             handle_pgflt(uint);
+void            clearps(struct pageselect*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

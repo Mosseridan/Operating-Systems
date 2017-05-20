@@ -108,7 +108,9 @@ int
 growproc(int n)
 {
   uint sz;
-
+  #ifdef DEBUG
+			cprintf("@in growproc: pid %d n: %d\n",proc->pid,n);
+	#endif
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -136,12 +138,13 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if(!copyuvm(proc, np)){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -238,6 +241,11 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        #ifndef NONE
+          removeSwapFile(p);
+          p->swapFile = 0;
+          clearps(&p->ps);
+        #endif
         release(&ptable.lock);
         return pid;
       }
