@@ -67,6 +67,21 @@ struct context {
   };
 #endif
 
+#ifdef LAP{
+  struct pageselect{
+    int contains;
+    // char* data[MAX_PSYC_PAGES];
+    uint accesses[MAX_TOTAL_PAGES];
+  };
+#endif
+
+#ifndef NONE
+  struct swapMetaData{
+    uint swapmeta[MAX_PSYC_PAGES];
+    uint count;
+  };
+#endif
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 
@@ -87,10 +102,12 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   //Swap file. must initiate with create swap file
+	struct file *swapFile;			 // page file
   #ifndef NONE
-    struct file *swapFile;			 // page file
-    struct pageselect ps;       // data for page selection algorithms
-    uint swapmeta[MAX_PSYC_PAGES]; // data on pages in swapfile
+    struct pageselect ps;      // data for page selection algorithms
+    struct swapMetaData sm;    // data on pages in swapfile
+    uint pagefaultsCounter;    // counting the number of pagefaults a process had
+    uint pageoutCounter;    // counting the number of pagefaults a process had
   #endif
 };
 

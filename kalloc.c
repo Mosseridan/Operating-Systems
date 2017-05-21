@@ -94,3 +94,20 @@ kalloc(void)
   return (char*)r;
 }
 
+int
+roomLeftForkalloc(void)
+{
+  struct run *r;
+  uint freeSpace = 0;
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  r = kmem.freelist;
+  while(r){
+    freeSpace++;
+    r = r->next;
+  }
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return freeSpace;
+}

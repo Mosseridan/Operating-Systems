@@ -209,6 +209,9 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  #ifdef TRUE //dumping proc info before exiting only if VERBOSE=TRUE
+  procdump();
+  #endif
   proc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -463,12 +466,19 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    #ifndef NONE
+      cprintf("%d %s %d %d %d %d %s", p->pid, state,  p->sz/PGSIZE, p->sm.count, p->pagefaultsCounter, p->pageoutCounter, p->name);
+    #else
+      cprintf("%d %s %s", p->pid, state, p->name);
+    #endif
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
         cprintf(" %p", pc[i]);
     }
-    cprintf("\n");
+      cprintf("\n");
   }
+  #ifndef NONE
+    cprintf("\n%d# free pages in the system\n", roomLeftForkalloc());//printing using freelist to count free pages
+  #else
 }

@@ -13,3 +13,4 @@
 #define FSSIZE       1000  // size of file system in blocks
 #define MAX_TOTAL_PAGES 30 // maximum number of pages per process
 #define MAX_PSYC_PAGES 15  // maximum number of pages per process in physical memory
+#define UINT_MAX      4294967295 // maximal value of int

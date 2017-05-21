@@ -52,10 +52,10 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
-int				createSwapFile(struct proc* p);
-int				readFromSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size);
-int				writeToSwapFile(struct proc* p, char* buffer, uint placeOnFile, uint size);
-int				removeSwapFile(struct proc* p);
+int				      createSwapFile(struct proc* p);
+int				      readFromSwapFile(struct proc * p, char* buffer, uint placeOnFile, uint size);
+int				      writeToSwapFile(struct proc* p, char* buffer, uint placeOnFile, uint size);
+int				      removeSwapFile(struct proc* p);
 // ide.c
 void            ideinit(void);
 void            ideintr(void);
@@ -71,6 +71,8 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+int             roomLeftForkalloc(void); //how much space is left - for task3
+
 
 // kbd.c
 void            kbdintr(void);
@@ -188,6 +190,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t*, char*);
 int             handle_pgflt(uint);
 void            clearps(struct pageselect*);
+int             getNumOfPysicPages(struct pageselect*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

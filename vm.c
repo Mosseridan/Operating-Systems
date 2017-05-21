@@ -455,7 +455,8 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     if(p->swapFile)
       return 0;
     for(int i = 0; i < MAX_PSYC_PAGES; i++)
-      p->swapmeta[i] = -1;
+      p->sm.swapmeta[i] = -1;
+    p->sm.count=0;
     return createSwapFile(p);
   }
 
@@ -463,8 +464,9 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   writePageToSwapFile(struct proc* p, char* page)
   {
     for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
-      if(p->swapmeta[i] == -1){
-        p->swapmeta[i] = (uint)page;
+      if(p->sm.swapmeta[i] == -1){
+        p->sm.swapmeta[i] = (uint)page;
+        p->sm.count++;
         return writeToSwapFile(p, page, i*PGSIZE, PGSIZE);
       }
     }
@@ -475,8 +477,9 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   readPageFromSwapFile(struct proc* p, char* page)
   {
     for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
-      if(p->swapmeta[i] == (uint)page){
-        p->swapmeta[i] = -1;
+      if(p->sm.swapmeta[i] == (uint)page){
+        p->sm.swapmeta[i] = -1;
+        p->sm.count--;
         return readFromSwapFile(p, page, i*PGSIZE, PGSIZE);
       }
     }
@@ -549,6 +552,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     flags = ((PTE_FLAGS(*pte) | PTE_PG) & ~PTE_P);
     *pte = pa | flags;
     lcr3(v2p(proc->pgdir)); // refresh TLB
+    proc->pageoutCounter++; //counting number of swapouts taking place for task3
     // cprintf("in swapout: pid: %d va: %d:%d ENDED!\n",proc->pid,(uint)va/PGSIZE,(uint)va);
   }
 
@@ -559,6 +563,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     #ifdef DEBUG
 			cprintf("@in handle_pgflt va: %d:%d\n",(uint)va/PGSIZE,(uint)va);
 	  #endif
+    proc->pagefaultsCounter++; // counting pagefaults for task3
     pte_t *pte = walkpgdir((pde_t*)proc->pgdir,(char*)va,0);
     if(!pte){
       cprintf("@in handle_pgflt pte = 0\n");
@@ -752,6 +757,74 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
       ps->queue[i] = (char*)-1;
     ps->in = 0;
     ps->out = 0;
+    ps->contains = 0;
+  }
+
+#endif
+
+#ifdef LAP
+
+  char*
+  selectpage(struct pageselect* ps)
+  {
+    if(!ps->contains)
+      panic("(LAP) trying to select a page while the process has none.");
+
+    uint leastAccessed = UINT_MAX;
+    uint page = 0;
+    for(i=0; i < MAX_TOTAL_PAGES; i++){
+      if(proc->ps[i] < leastAccessed){
+        leastAccessed = proc->ps[page];
+        page = i;
+      }
+    }
+    ps->accesses[page] = UINT_MAX;
+    #ifdef DEBUG
+		  cprintf("@in select: pid: %d selected page %d:%d\n",proc->pid,page,page*PGSIZE);
+	  #endif
+    ps->contains--;
+    return page*PGSIZE;
+  }
+
+  void
+  addpage(struct pageselect* ps, char* va)
+  {
+    va = (char*)PGROUNDDOWN((uint)va);
+    #ifdef DEBUG
+			cprintf("@in addpage: pid: %d adding page %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	  #endif
+    if(ps->contains == MAX_PSYC_PAGES){
+      #ifdef DEBUG
+			   cprintf("@in addpage: pid: %d no room for page: %d:%d swaping out another page\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+	    #endif
+      swapout(selectpage(ps));
+    }
+    ps->accesses[va/PGSIZE] = 0;
+    ps->contains++;
+  }
+
+  void
+  removepage(struct pageselect* ps, char* va)
+  {
+    #ifdef DEBUG
+  		cprintf("@in removepage: pid: %d removing page %d:%d\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+  	#endif
+    va = (char*)PGROUNDDOWN((uint)va);
+    if(!ps->contains){
+      #ifdef DEBUG
+        cprintf("@in removepage: pid: %d  va: %d:%d ps is empty\n",proc->pid,(uint)va/PGSIZE,(uint)va);
+      #endif
+      return;
+    }
+    ps->accesses[va/PGSIZE] = UINT_MAX;
+    ps->contains--;
+  }
+
+  void
+  clearps(struct pageselect* ps)
+  {
+    for(int i = 0; i<MAX_TOTAL_PAGES;i++)
+      ps->accesses[i] = UINT_MAX;
     ps->contains = 0;
   }
 
