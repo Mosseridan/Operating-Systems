@@ -51,7 +51,9 @@ trap(struct trapframe *tf)
     if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
-      updateAccessed();
+      #ifdef LAP
+        updateAccessed();
+      #endif
       wakeup(&ticks);
       release(&tickslock);
     }

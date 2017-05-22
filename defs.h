@@ -124,6 +124,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            updateAccessed(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -190,6 +191,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t*, char*);
 int             handle_pgflt(uint);
 void            clearps(struct pageselect*);
+void            updateps(struct pageselect*, pde_t*);
 int             getNumOfPysicPages(struct pageselect*);
 
 // number of elements in fixed-size array

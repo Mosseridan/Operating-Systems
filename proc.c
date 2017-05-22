@@ -480,5 +480,15 @@ procdump(void)
   }
   #ifndef NONE
     cprintf("\n%d# free pages in the system\n", roomLeftForkalloc());//printing using freelist to count free pages
-  #else
+  #endif
 }
+
+#ifdef LAP
+void
+updateAccessed()
+{
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    updateps(&proc->ps,p->pgdir);
+}
+#endif
