@@ -48,12 +48,12 @@ trap(struct trapframe *tf)
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
+    #ifdef LAP
+      accessupdate();
+    #endif
     if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
-      #ifdef LAP
-        updateAccessed();
-      #endif
       wakeup(&ticks);
       release(&tickslock);
     }

@@ -53,7 +53,7 @@ struct context {
 
 #ifdef LIFO
   struct pageselect{
-    int top;
+    uint top;
     uint stack[MAX_PSYC_PAGES];
   };
 #endif
@@ -69,7 +69,7 @@ struct context {
 
 #ifdef LAP
   struct pageselect{
-    int contains;
+    uint contains;
     uint accesses[MAX_TOTAL_PAGES];
   };
 #endif

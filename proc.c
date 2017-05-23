@@ -245,11 +245,15 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         #ifndef NONE
-          removeSwapFile(p);
-          p->swapFile = 0;
           clearps(&p->ps);
         #endif
         release(&ptable.lock);
+        #ifndef NONE
+          if(p->swapFile){
+            removeSwapFile(p);
+            p->swapFile = 0;
+          }
+        #endif
         return pid;
       }
     }
@@ -482,13 +486,26 @@ procdump(void)
     cprintf("\n%d# free pages in the system\n", roomLeftForkalloc());//printing using freelist to count free pages
   #endif
 }
-
-#ifdef LAP
-void
-updateAccessed()
-{
-  struct proc *p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    updateps(&proc->ps,p->pgdir);
-}
-#endif
+//
+// #ifdef LAP
+// void
+// updateAccessed()
+// {
+//
+//   struct proc *p;
+//   // #ifdef DEBUG
+//   //   cprintf("!@");
+//   // #endif%
+//
+//   int has_lk = holding(&ptable.lock);
+//   if (!has_lk) acquire(&ptable.lock);
+//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//     if(p->pid > 2 && (p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING)){
+//       // #ifdef DEBUG
+//       //   cprintf("@in updateAccessed: p: %d  calling updateps\n",p->pid);
+//       // #endif
+//       updateps(&p->ps,p->pgdir);
+//     }
+//   if (! has_lk) release(&ptable.lock);
+// }
+// #endif
