@@ -355,7 +355,7 @@ pde_t*
 copyuvm(struct proc* parent, struct proc* child)
 {
   uint sz = parent->sz;
-  pte_t *pte;
+  pte_t *ppte, *cpte;
   uint pa, i, flags;
   char *mem;
 
@@ -364,51 +364,63 @@ copyuvm(struct proc* parent, struct proc* child)
   #endif
   if((child->pgdir = setupkvm()) == 0)
     return 0;
-  //
-  // #ifndef NONE
-  //   clearps(&child->ps);
-  // #endif
+  // copy physical memory
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(parent->pgdir, (void *) i, 0)) == 0)
+    if((ppte = walkpgdir(parent->pgdir, (void *) i, 0)) == 0)
       panic("in copyuvm: parent pte should exist");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    if(*pte & PTE_P){
+    pa = PTE_ADDR(*ppte);
+    flags = PTE_FLAGS(*ppte);
+    if(*ppte & PTE_P){
       #ifdef DEBUG
   		  cprintf("@in copyuvm: copying page %d:%d from parent %d pysical memory to child %d pysical memory\n",i/PGSIZE,i,parent->pid,child->pid);
   		#endif
+      if((mem = kalloc()) == 0)
+        goto bad;
       memmove(mem, (char*)p2v(pa), PGSIZE);
       if(mappages(child->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0)
         goto bad;
-      }
-      #ifndef NONE
-        else if(*pte & PTE_PG){
-          for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
-            if(p->sm.swapmeta[i] == page){
-          readFromSwapFile(parent, mem, i*PGSIZE, PGSIZE);
-        }
-      #endif
-      else{
-        panic("in copyuvm: page not present");
-      }
-
-      // #ifndef NONE
-      //   if(child->pid > 2 && (*pte & PTE_U))
-      //     addpage(&child->ps, i);
-      // #endif
-
-      #ifndef NONE
-        if(parent->pid <= 2 || !(*pte & PTE_PG))  // this page is swaped out
-          panic("in copyuvm: page not present");
-        swapin(i);//TODO:??
-      #endif
+    }
+    else if(!(*ppte & PTE_PG)){
+      panic("in copyuvm: page not present");
     }
   }
 
-  if(parent->pid > 2)
-    copyps(&parent->ps,&child->ps);
+
+  #ifndef NONE
+    // copy selection data
+    if(parent->pid > 2)
+      copyps(&parent->ps,&child->ps);
+    // copy swapFile and swap metadata;
+    if(parent->pid > 2 && parent->swapFile){
+      createSwapFile(child);
+      for(int i = 0 ; i< MAX_PSYC_PAGES; i++){
+        int va = parent->sm.swapmeta[i];
+        if(va >= 0){
+          #ifdef DEBUG
+            cprintf("@in copyuvm: copying page %d:%d from parent %d swapFile to child %d swapFile\n",va/PGSIZE,va,parent->pid,child->pid);
+          #endif
+          if((mem = kalloc()) == 0)
+            goto bad;
+          if(readFromSwapFile(parent, mem, va*PGSIZE, PGSIZE) < 0)
+            goto bad;
+          if(writeToSwapFile(child, mem, i*PGSIZE, PGSIZE) < 0)
+            goto bad;
+          kfree(mem);
+          // copy parent pte to child page dir
+          if((ppte = walkpgdir(parent->pgdir, (void*)va, 0)) == 0)
+            panic("in copyuvm: parent pte should exist");
+          if((cpte = walkpgdir(child->pgdir, (void*)va, 1)) == 0)
+            goto bad;
+          if(*cpte & PTE_P)
+            panic("remap");
+          *cpte = *ppte;
+        }
+        child->sm.swapmeta[i] = parent->sm.swapmeta[i];
+      }
+      child->sm.count = parent->sm.count;
+    }
+  #endif
+
   return child->pgdir;
 
 bad:
@@ -671,7 +683,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     if(!ps->top)
       panic("(LIFO) trying to select a page while the process has none.");
     ps->top--;
-    uint va = ps->stack[ps->top-1];
+    uint va = ps->stack[ps->top];
     ps->stack[ps->top] = -1;
     #ifdef DEBUG
 		  cprintf("@in select: pid: %d selected page %d:%d top: %d\n",proc->pid,va/PGSIZE,va,ps->top);

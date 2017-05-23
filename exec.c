@@ -19,7 +19,7 @@ exec(char *path, char **argv)
   pde_t *pgdir, *oldpgdir;
 
   #ifdef DEBUG
-			cprintf("@in exec: pid:%d\n",proc->pid);
+			cprintf("@in exec: pid:%d path: %s\n",proc->pid,path);
 	#endif
 
   begin_op();
