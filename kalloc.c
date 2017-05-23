@@ -12,6 +12,8 @@
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
 
+int TOTAL_FREE_PAGES = 0;
+
 struct run {
   struct run *next;
 };
@@ -39,7 +41,10 @@ void
 kinit2(void *vstart, void *vend)
 {
   freerange(vstart, vend);
+
   kmem.use_lock = 1;
+  TOTAL_FREE_PAGES = nfreepages();
+
 }
 
 void
@@ -95,7 +100,7 @@ kalloc(void)
 }
 
 int
-roomLeftForkalloc(void)
+nfreepages(void)
 {
   struct run *r;
   uint freeSpace = 0;
@@ -110,4 +115,10 @@ roomLeftForkalloc(void)
   if(kmem.use_lock)
     release(&kmem.lock);
   return freeSpace;
+}
+
+int
+totalfreepages()
+{
+  return TOTAL_FREE_PAGES;
 }

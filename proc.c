@@ -113,10 +113,10 @@ growproc(int n)
 	#endif
   sz = proc->sz;
   if(n > 0){
-    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(proc, proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
-    if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((sz = deallocuvm(proc, proc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
   proc->sz = sz;
@@ -238,15 +238,12 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        freevm(p,p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-        #ifndef NONE
-          clearps(&p->ps);
-        #endif
         release(&ptable.lock);
         #ifndef NONE
           if(p->swapFile){
@@ -483,29 +480,6 @@ procdump(void)
       cprintf("\n");
   }
   #ifndef NONE
-    cprintf("\n%d# free pages in the system\n", roomLeftForkalloc());//printing using freelist to count free pages
+    cprintf("\n%d / %d # free pages in the system\n", nfreepages(), totalfreepages());//printing using freelist to count free pages
   #endif
 }
-//
-// #ifdef LAP
-// void
-// updateAccessed()
-// {
-//
-//   struct proc *p;
-//   // #ifdef DEBUG
-//   //   cprintf("!@");
-//   // #endif%
-//
-//   int has_lk = holding(&ptable.lock);
-//   if (!has_lk) acquire(&ptable.lock);
-//   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-//     if(p->pid > 2 && (p->state == RUNNING || p->state == RUNNABLE || p->state == SLEEPING)){
-//       // #ifdef DEBUG
-//       //   cprintf("@in updateAccessed: p: %d  calling updateps\n",p->pid);
-//       // #endif
-//       updateps(&p->ps,p->pgdir);
-//     }
-//   if (! has_lk) release(&ptable.lock);
-// }
-// #endif

@@ -8,8 +8,10 @@ struct rtcdate;
 struct spinlock;
 struct stat;
 struct superblock;
-struct pageselect;
-
+#ifndef NONE
+  struct pageselect;
+  struct swapMetaData;
+#endif
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -71,8 +73,8 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
-int             roomLeftForkalloc(void); //how much space is left - for task3
-
+int             nfreepages(void); //how much space is left - for task3
+int             totalfreepages(void); // total number of free pages after kernel allocation
 
 // kbd.c
 void            kbdintr(void);
@@ -179,21 +181,23 @@ void            kvmalloc(void);
 void            vmenable(void);
 pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
-int             allocuvm(pde_t*, uint, uint);
-int             deallocuvm(pde_t*, uint, uint);
-void            freevm(pde_t*);
+int             allocuvm(struct proc*,pde_t*, uint, uint);
+int             deallocuvm(struct proc*,pde_t*, uint, uint);
+void            freevm(struct proc*,pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
 pde_t*          copyuvm(struct proc*, struct proc*);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
-void            clearpteu(pde_t*, char*);
-int             handle_pgflt(uint);
-void            clearps(struct pageselect*);
-void            accessupdate(void);
-//void            updateps(struct pageselect*, pde_t*);
-int             getNumOfPysicPages(struct pageselect*);
-
+void            clearpteu(struct proc*, pde_t*, char*);
+#ifndef NONE
+  int             handle_pgflt(uint);
+  void            clearps(struct pageselect*);
+  void            copyps(struct pageselect*, struct pageselect*);
+  void            clearswapmeta(struct swapMetaData*);
+  void            accessupdate(void);
+  int             getNumOfPysicPages(struct pageselect*);
+#endif
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
