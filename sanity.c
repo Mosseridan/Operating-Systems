@@ -12,5 +12,10 @@ main(int argc, char *argv[])
      exec("test1", argv);
   }
   wait();
+  if((cpid = fork()) == 0){
+     exec("myMemTest", argv);
+  }
+
+  wait();
   exit();
 }
