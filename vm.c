@@ -867,13 +867,16 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   void
   accessupdate(){
     pte_t* pte;
-    if(!proc || proc->pid <= 2 || proc->state != UNUSED || proc->state != ZOMBIE)
+    // if(!proc || proc->pid <= 2 || proc->state == UNUSED || proc->state == ZOMBIE)
+    //   return;
+    if(!proc || proc->pid <= 2)
       return;
     for(int page=0;page<MAX_TOTAL_PAGES; page++){
       if((proc->ps).accesses[page] < UINT_MAX){
         pte = walkpgdir(proc->pgdir, (char*)(page*PGSIZE), 0);
         if(*pte & PTE_A)
           (proc->ps).accesses[page]++;
+        *pte = *pte & ~PTE_A;
       }
     }
   }
@@ -886,7 +889,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 
     uint min = UINT_MAX;
     uint page = 0;
-    for(int i = MAX_TOTAL_PAGES-1; i >= 0; i--){
+    for(int i = 0; i < MAX_TOTAL_PAGES; i++){
       if(ps->accesses[i] < min){
         min = ps->accesses[i];
         page = i;
