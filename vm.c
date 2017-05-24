@@ -880,7 +880,6 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
           (proc->ps).accesses[page]++;
         *pte = *pte & ~PTE_A;
         lcr3(v2p(proc->pgdir)); // refresh TLB
-
       }
     }
   }
@@ -893,7 +892,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 
     uint min = UINT_MAX;
     uint page = 0;
-    for(int i = 0; i < MAX_TOTAL_PAGES; i++){
+    for(int i = MAX_TOTAL_PAGES-1; i >=0; i--){
       if(ps->accesses[i] < min){
         min = ps->accesses[i];
         page = i;
