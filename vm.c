@@ -256,6 +256,7 @@ allocuvm(struct proc* p, pde_t* pgdir,uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+    // cprintf("&&&&&&&&  allocuvm: a = %d \n",a);
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -764,6 +765,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
       if(!(*pte & PTE_A))
         break;
       *pte &= ~PTE_A;
+      lcr3(v2p(proc->pgdir)); // refresh TLB
       #ifdef DEBUG
         cprintf("@in select: va: %d:%d enqueued back. in: %d, out: %d, contains: %d, pid: %d\n",va/PGSIZE,va,ps->in,ps->out,ps->contains,proc->pid);
       #endif
@@ -877,6 +879,8 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
         if(*pte & PTE_A)
           (proc->ps).accesses[page]++;
         *pte = *pte & ~PTE_A;
+        lcr3(v2p(proc->pgdir)); // refresh TLB
+
       }
     }
   }
