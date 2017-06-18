@@ -20,44 +20,20 @@ procfsisdir(struct inode *ip) {
 
 void
 procfsiread(struct inode* dp, struct inode *ip) {
+  // ip->type = //WHERE DO I FIND THIS?
+  if(ip->type == T_DEV){
+    //major and minor are only relevant if this inode represents a device
+    // ip->major = //WHERE DO I FIND THIS?
+    // ip->minor = //WHERE DO I FIND THIS?
+  } else if(ip->type == 0)
+    panic("procfsiread: no type");
+  ip->flags |= I_VALID;
 }
-
-
-// void
-// ilock(struct inode *ip)
-// {
-//   struct buf *bp;
-//   struct dinode *dip;
-//
-//   if(ip == 0 || ip->ref < 1)
-//     panic("ilock");
-//
-//   acquire(&icache.lock);
-//   while(ip->flags & I_BUSY)
-//     sleep(ip, &icache.lock);
-//   ip->flags |= I_BUSY;
-//   release(&icache.lock);
-//
-//   if(!(ip->flags & I_VALID)){
-//     bp = bread(ip->dev, IBLOCK(ip->inum));
-//     dip = (struct dinode*)bp->data + ip->inum%IPB;
-//     ip->type = dip->type;
-//     ip->major = dip->major;
-//     ip->minor = dip->minor;
-//     ip->nlink = dip->nlink;
-//     ip->size = dip->size;
-//     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
-//     brelse(bp);
-//     ip->flags |= I_VALID;
-//     if(ip->type == 0)
-//       panic("ilock: no type");
-//   }
-// }
-
-
 
 int
 procfsread(struct inode *ip, char *dst, int off, int n) {
+  // struct ptable* pt = getPtable();
+  cprintf("TESTING");
   return 0;
 }
 
@@ -74,4 +50,18 @@ procfsinit(void)
   devsw[PROCFS].iread = procfsiread;
   devsw[PROCFS].write = procfswrite;
   devsw[PROCFS].read = procfsread;
+}
+
+void
+addToFileSystem(int pid)
+{
+  //TODO: DO WE NEED THIS???
+  //TODO: IMPLEMENT THIS
+}
+
+void
+removeFromFileSystem(int pid)
+{
+  //TODO: DO WE NEED THIS???
+  //TODO: IMPLEMENT THIS
 }
