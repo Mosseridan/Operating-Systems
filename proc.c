@@ -465,7 +465,7 @@ procdump(void)
 }
 
 //This function is used to get a reference to the process table in procfs.c
-struct ptable
+struct ptable*
 getPtable(){
-  return ptable;
+  return &ptable;
 }

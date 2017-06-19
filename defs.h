@@ -119,7 +119,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-struct ptable  getPtable(); //This the ptable
+struct ptable*  getPtable(); 
 
 // procfs.c
 void 			procfsinit(void);

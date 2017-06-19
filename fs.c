@@ -534,7 +534,6 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       inum = de.inum;
       ip = iget(dp->dev, inum);
       if (!(ip->flags & I_VALID) && dp->type == T_DEV && devsw[dp->major].iread) {
-        ip->minor = de.type;
         devsw[dp->major].iread(dp, ip);
       }
       return ip;
@@ -656,6 +655,7 @@ namex(char *path, int nameiparent, char *name)
 struct inode*
 namei(char *path)
 {
+  // cprintf("in namei: path: %s\n",path);
   char name[DIRSIZ];
   return namex(path, 0, name);
 }
