@@ -1,4 +1,4 @@
-// On-disk file system format. 
+// On-disk file system format.
 // Both the kernel and user programs use this header file.
 
 // Block 0 is unused.
@@ -46,10 +46,10 @@ struct dinode {
 #define BBLOCK(b, ninodes) (b/BPB + (ninodes)/IPB + 3)
 
 // Directory is a file containing a sequence of dirent structures.
-#define DIRSIZ 14
+#define DIRSIZ 12 //used to be 14
 
 struct dirent {
   ushort inum;
   char name[DIRSIZ];
+  short type;
 };
-

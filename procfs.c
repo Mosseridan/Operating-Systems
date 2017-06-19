@@ -11,15 +11,30 @@
 #include "proc.h"
 #include "x86.h"
 
+#define CURRENTDIR    0
+#define PARENTDIR     1
+#define BLOCKSTAT     2
+#define INODESTAT     3
+#define FIRSTPID      4
 
-#define PARENTDIR 1
-#define BLOCKSTAT 2
-#define INODESTAT 3
+#define CURRENTDIRSTR "."
+#define PARENTDIRSTR ".."
+#define BLOCKSTATSTR "blockstat"
+#define INODESTATSTR "inodestat"
 
-// int procfsreadProc(struct inode *_ip, char *_dst, int _off, int _n, struct proc* _p, struct ptable _pt, struct dirent* _proc_dirents); //procfsreadProc(struct inode *_ip, char *_dst, int _off, int _n);
+#define T_PROC            1
+#define T_PROC_BLOCKSTAT  2
+#define T_PROC_INODESTAT  3
+#define T_PROC_PID        4
+#define T_PROC_PID_CWD    5
+#define T_PROC_PID_FDINFO 6
+#define T_PROC_PID_STATUS 7
+
+
+// #define ISDIR 0x80000000
+
+
 int procfsreadProc(struct inode *ip, char *dst, int off, int n);
-int procfsreadBlockstat(struct inode *ip, char *dst, int off, int n);
-int procfsreadInodestat(struct inode *ip, char *dst, int off, int n);
 int procfsreadPid(struct inode *ip, char *dst, int off, int n);
 
 int pidToString(int pid, char *str);
@@ -36,52 +51,44 @@ char *procfs_proc_pid_names[7] = { ".", "..", "cwd", "fdinfo", "status"}; // Use
 int
 procfsisdir(struct inode *ip)
 {
-  if(namei("proc") == ip || (ip->type == T_DEV && ip->major == PROCFS && ip->minor == T_DIR)) // All of our direcetories are devices with minor=T_DIR (because we need them to use procnfsiread before ilock)
-    return T_DIR; //This returns 1 (T_DIR = 1)
+  if(ip->type == T_DEV && ip->major == PROCFS && (ip->minor == T_PROC || ip->minor == T_PROC_PID || ip->minor == T_PROC_PID_FDINFO)) // All of our direcetories are devices with minor=T_DIR (because we need them to use procnfsiread before ilock)
+    return 1;
   return 0;
 }
 
 void
 procfsiread(struct inode* dp, struct inode *ip)
 {
-  if(ip->inum < INODE_FIRST_INDEX) // If inum < INODE_FIRST_INDEX it means that this is a regular system inode (the data is on the physical disk)
+  if(ip->inum < MAX_DINODES) // If inum < MAX_DINODES it means that this is a regular system inode (the data is on the physical disk)
     return; // Return and call ilock to get the data from the disk
   ip->type = T_DEV; // All of our direcetories are devices with minor=T_DIR (because we need them to use procnfsiread before ilock)
   ip->ref = 1;
   ip->major = PROCFS;
-  if(ip->inum == BLOCKSTAT || ip->inum == INODESTAT) // We manually set BLOCKSTAT to have inum BLOCKSTAT(=2)+INODE_FIRST_INDEX(=200) and inodestat to have inum INODESTAT(=3)+INODE_FIRST_INDEX(=200)//TODO: IS THIS CORRECT?
-    ip->minor = T_FILE;
-  else
-    ip->minor = T_DIR;
+  // if(ip->inum & ISDIR) // We manually set BLOCKSTAT to have inum BLOCKSTAT(=2)+MAX_DINODES(=200) and inodestat to have inum INODESTAT(=3)+MAX_DINODES(=200)//TODO: IS THIS CORRECT?
+  //   ip->minor = T_DIR;
+  // else
+  //   ip->minor = T_FILE;
+  //cprintf("procfsiread: ip->minor: %d\n", ip->minor);
   ip->flags |= I_VALID; // To prevent ilock from trying to read data from the disk (because there is no data on the disk!)
 }
 
 int
 procfsread(struct inode *ip, char *dst, int off, int n)
 {
-  // struct proc* p;
-  // struct ptable pt;
-  // struct dirent proc_dirents[NPROC+4]; // Represents the direntries inside /proc, NPROC(=64) entries for the running processes, 2 for the . and .., and 2 for the blockstat and inodestat
-
-	if (ip == namei("proc")){
+	if (ip->minor == T_PROC){
     // 1. ip is the inode describing "/proc"
       return procfsreadProc(ip, dst, off, n);
-  } else if(ip.inum == BLOCKSTAT){
-    // 2. ip is the inode describing "/proc/blockstat"
-      return procfsreadBlockstat(ip, dst, off, n);
-  } else if(ip.inum == INODESTAT){
-    // 3. ip is the inode describing "/proc/inodestat"
-      return procfsreadInodestat(ip, dst, off, n);
+  } else if(ip->minor == T_PROC_PID){
+    // 2. ip is the inode describing "/proc/PID"
+      return procfsreadPid(ip, dst, off, n);
   // } else if(){
-  //   // 4. ip is the inode describing "/proc/PID"
+  //   // 3. ip is the inode describing "/proc/PID/cwd"
   // } else if(){
-  //   // 5. ip is the inode describing "/proc/PID/cwd"
+  //   // 4. ip is the inode describing "/proc/PID/status"
   // } else if(){
-  //   // 6. ip is the inode describing "/proc/PID/status"
+  //   // 5. ip is the inode describing "/proc/PID/fdinfo"
   // } else if(){
-  //   // 7. ip is the inode describing "/proc/PID/fdinfo"
-  // } else if(){
-  //   // 8. ip is the inode describing "/proc/PID/fdinfo/FD"
+  //   // 6. ip is the inode describing "/proc/PID/fdinfo/FD"
   }
 
   cprintf("procfsread: DOING NOTHING\n"); //TODO: remove this!!!
@@ -115,57 +122,118 @@ procfsreadProc(struct inode *ip, char *dst, int off, int n)
 {
   struct proc* p;
   struct ptable pt;
-  struct dirent proc_dirents[NPROC+4]; // Represents the direntries inside /proc, NPROC(=64) entries for the running processes, 2 for the . and .., and 2 for the blockstat and inodestat
-  int num_of_dirents = -1;
+  struct dirent dirent;
+  uint index;
+  uint countProcs;
 
-  // Treating the . , .. , blockstat and inodestat special cases seperately
-  proc_dirents[++num_of_dirents].inum = ip->inum;
-  strncpy(proc_dirents[num_of_dirents].name, ".", 2);
+  if(off == 0){
+      index = 0;
+  } else
+      index = off/sizeof(dirent);
 
-  proc_dirents[++num_of_dirents].inum = 1;
-  strncpy(proc_dirents[num_of_dirents].name, "..", 3);
+  //cprintf("procfsreadProc: ip->inum: %d , off: %d, n: %d\n", ip->inum, off, n);
 
-  // Treating the blockstat and inodestat special cases seperately
-  proc_dirents[++num_of_dirents].inum = 2;
-  strncpy(proc_dirents[num_of_dirents].name, "blockstat", 10);
+  switch(index){
+    case CURRENTDIR:
+      dirent.inum = ip->inum;
+      dirent.type = ip->minor;
+      strncpy(dirent.name, CURRENTDIRSTR, sizeof(CURRENTDIRSTR));
+      break;
+    case PARENTDIR:
+      dirent.inum = PARENTDIR+MAX_DINODES;
+      dirent.type = 0;
+      // dirent.inum |= ISDIR;
+      strncpy(dirent.name, PARENTDIRSTR, sizeof(PARENTDIRSTR));
+      break;
+    case BLOCKSTAT:
+      dirent.inum = BLOCKSTAT+MAX_DINODES;
+      dirent.type = T_PROC_BLOCKSTAT;
+      strncpy(dirent.name, BLOCKSTATSTR, sizeof(BLOCKSTATSTR));
+      break;
+    case INODESTAT:
+      dirent.inum = INODESTAT+MAX_DINODES;
+      dirent.type = T_PROC_INODESTAT;
+      strncpy(dirent.name, INODESTATSTR, sizeof(INODESTATSTR));
+      break;
+    default:
+      countProcs = FIRSTPID;
+      pt = getPtable();
+      acquire(&pt.lock);
+      for(p = pt.proc; p < &pt.proc[NPROC] && countProcs <= index; p++){
+        // cprintf("procfsreadProc: p->pid: %d , index: %d, countProcs: %d\n", p->pid, index, countProcs);
 
-  proc_dirents[++num_of_dirents].inum = 3;
-  strncpy(proc_dirents[num_of_dirents].name, "inodestat", 10);
-
-  // Treating the directories of all the running processes
-  pt = getPtable();
-  acquire(&pt.lock);
-	for(p = pt.proc; p < &pt.proc[NPROC]; p++){
-		if(p->state != UNUSED && p->state != ZOMBIE){
-			if(pidToString(p->pid, proc_dirents[++num_of_dirents].name) == -1)
-        panic("procfsread: pid exceeds 14 digits");
-			proc_dirents[num_of_dirents].inum = p->pid + INODE_FIRST_INDEX;
-		}
-	}
-	release(&pt.lock);
-
-  if (off >= num_of_dirents*sizeof(struct dirent)) // The offset is out of bounds (no such dirent)
-		return 0;
-
-	memmove(dst, (char *)((uint)proc_dirents+(uint)off), n);
-	return n;
-}
-
-int
-procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
-{
-  return 0;
-}
-
-int
-procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
-{
-  return 0;
+        if(p->state != UNUSED && p->state != ZOMBIE && index == countProcs++){
+          //cprintf("procfsreadProcIF: p->pid: %d , index: %d, countProcs: %d\n", p->pid, index, countProcs);
+          dirent.inum = (p->pid + MAX_DINODES);
+          dirent.type = T_PROC_PID;
+          // dirent.inum |= ISDIR;
+          if(pidToString(p->pid, dirent.name) == -1)
+            panic("procfsread: pid exceeds 12 digits");
+          break;
+        }
+      }
+      release(&pt.lock);
+      return 0;
+  }
+  memmove(dst, &dirent , n);
+  return n;
 }
 
 int
 procfsreadPid(struct inode *ip, char *dst, int off, int n)
 {
+  struct proc* p;
+  struct ptable pt;
+  struct dirent dirent;
+  uint index;
+  uint countProcs;
+
+  if(off == 0){
+      index = 0;
+  } else
+      index = off/sizeof(dirent);
+
+  switch(index){
+    case CURRENTDIR:
+      dirent.inum = ip->inum;
+      strncpy(dirent.name, CURRENTDIRSTR, sizeof(CURRENTDIRSTR));
+      break;
+    case PARENTDIR:
+      dirent.inum = PARENTDIR+MAX_DINODES;
+      strncpy(dirent.name, PARENTDIRSTR, sizeof(PARENTDIRSTR));
+      break;
+    case BLOCKSTAT:
+      dirent.inum = BLOCKSTAT+MAX_DINODES;
+      dirent.type = T_PROC_BLOCKSTAT;
+      strncpy(dirent.name, BLOCKSTATSTR, sizeof(BLOCKSTATSTR));
+      break;
+    case INODESTAT:
+      dirent.inum = INODESTAT+MAX_DINODES;
+      dirent.type = T_PROC_INODESTAT;
+      strncpy(dirent.name, INODESTATSTR, sizeof(INODESTATSTR));
+      break;
+  //   default:
+  //     countProcs = FIRSTPID;
+  //     pt = getPtable();
+  //     acquire(&pt.lock);
+  //     for(p = pt.proc; p < &pt.proc[NPROC] && countProcs <= index; p++){
+  //       // cprintf("procfsreadProc: p->pid: %d , index: %d, countProcs: %d\n", p->pid, index, countProcs);
+  //
+  //       if(p->state != UNUSED && p->state != ZOMBIE && index == countProcs++){
+  //         //cprintf("procfsreadProcIF: p->pid: %d , index: %d, countProcs: %d\n", p->pid, index, countProcs);
+  //         dirent.inum = (p->pid + MAX_DINODES);
+  //         dirent.type = T_PROC_PID;
+  //         // dirent.inum |= ISDIR;
+  //         if(pidToString(p->pid, dirent.name) == -1)
+  //           panic("procfsread: pid exceeds 12 digits");
+  //         break;
+  //       }
+  //     }
+  //     release(&pt.lock);
+  //     return 0;
+  // }
+  memmove(dst, &dirent , n);
+  return n;
   return 0;
 }
 
@@ -183,7 +251,7 @@ pidToString(int pid, char *str)
 		temp /= 10;
 	}
   if(len > DIRSIZ){
-    cprintf("pidToString: Directory name should not exceed 14 characters but this PID exceeds 14 digits");
+    cprintf("pidToString: Directory name should not exceed %d characters but this PID exceeds %d digits", DIRSIZ, DIRSIZ);
     return -1;
   }
   intToString(pid, len, str);

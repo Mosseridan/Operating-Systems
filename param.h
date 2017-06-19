@@ -10,4 +10,4 @@
 #define MAXOPBLOCKS       10  // max # of blocks any FS op writes
 #define LOGSIZE           (MAXOPBLOCKS*3)  // max data sectors in on-disk log
 #define NBUF              (MAXOPBLOCKS*3)  // size of disk block cache
-#define INODE_FIRST_INDEX 200 // System inodes are from 0 to 199, our inodes start from 200
+#define MAX_DINODES 200 // System inodes are from 0 to 199, our inodes start from 200
