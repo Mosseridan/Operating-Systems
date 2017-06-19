@@ -158,8 +158,6 @@ fork(void)
 
   pid = np->pid;
 
-  addToFileSystem(np->pid); //TODO: DO WE NEED THIS?
-
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
@@ -206,8 +204,6 @@ exit(void)
         wakeup1(initproc);
     }
   }
-
-  removeFromFileSystem(p->pid); //TODO: DO WE NEED THIS?
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -469,7 +465,7 @@ procdump(void)
 }
 
 //This function is used to get a reference to the process table in procfs.c
-struct ptable*
+struct ptable
 getPtable(){
-  return &ptable;
+  return ptable;
 }

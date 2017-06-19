@@ -119,7 +119,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-struct ptable*  getPtable(); //This function returns a pointer to the ptable
+struct ptable  getPtable(); //This the ptable
 
 // procfs.c
 void 			procfsinit(void);
@@ -183,10 +183,6 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
-// procfs.c
-void            addToFileSystem(int); //TODO: DO WE NEED THIS???
-void            removeFromFileSystem(int); //TODO: DO WE NEED THIS???
 
 
 // number of elements in fixed-size array
