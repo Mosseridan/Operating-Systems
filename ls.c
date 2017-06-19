@@ -47,7 +47,6 @@ ls(char *path)
     break;
 
   case T_DEV: //This line was added to make ls.c treat "proc" as a directory, and, as an unfortunate by-product, other devices aswell. (FROM THE ASSIGNMENT FAQ)
-      printf(1, "ls: inode type is T_DEV\n");
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf(1, "ls: path too long\n");

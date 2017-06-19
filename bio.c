@@ -4,7 +4,7 @@
 // cached copies of disk block contents.  Caching disk blocks
 // in memory reduces the number of disk reads and also provides
 // a synchronization point for disk blocks used by multiple processes.
-// 
+//
 // Interface:
 // * To get a buffer for a particular disk block, call bread.
 // * After changing buffer data, call bwrite to write it to disk.
@@ -12,10 +12,10 @@
 // * Do not use the buffer after calling brelse.
 // * Only one process at a time can use a buffer,
 //     so do not keep them longer than necessary.
-// 
+//
 // The implementation uses three state flags internally:
 // * B_BUSY: the block has been returned from bread
-//     and has not been passed back to brelse.  
+//     and has not been passed back to brelse.
 // * B_VALID: the buffer data has been read from the disk.
 // * B_DIRTY: the buffer data has been modified
 //     and needs to be written to disk.
@@ -99,10 +99,11 @@ struct buf*
 bread(uint dev, uint sector)
 {
   struct buf *b;
-
+  //TODO: increase the count for the total block access
   b = bget(dev, sector);
   if(!(b->flags & B_VALID))
     iderw(b);
+  //TODO: increase the count for the count hits/miss (can increase the miss and then total-miss=hits)
   return b;
 }
 
@@ -140,4 +141,3 @@ brelse(struct buf *b)
 }
 //PAGEBREAK!
 // Blank page.
-
