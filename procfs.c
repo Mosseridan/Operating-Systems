@@ -31,7 +31,7 @@ struct ptable{
   struct proc proc[NPROC];
 };
 
-char *procfs_proc_pid_names[7] = { ".", "..", "cwd", "fdinfo", "status"};
+char *procfs_proc_pid_names[7] = { ".", "..", "cwd", "fdinfo", "status"}; // Used to create the PID directories // TODO: use this or remove
 
 int
 procfsisdir(struct inode *ip)
