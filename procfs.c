@@ -46,6 +46,10 @@
 int procfsreadProc(struct inode *ip, char *dst, int off, int n);
 int procfsreadPid(struct inode *ip, char *dst, int off, int n);
 int procfsreadFdinfo(struct inode *ip, char *dst, int off, int n);
+int procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
+int procfsreadFD(struct inode *ip, char *dst, int off, int n)
+int procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
+int procfsreadStatus(struct inode *ip, char *dst, int off, int n)
 int trimBufferAndSend(char buf[BSIZE], int bytes_read, char *dst, int off, int n);
 int intToString(int pid, char *str);
 void buildIntString(int n, int len, char *str);
@@ -56,6 +60,20 @@ struct ptable{
   struct proc proc[NPROC];
 };
 
+struct status{
+  enum procstate state;
+  uint size;
+};
+
+
+struct fd {
+  enum { FD_NONE, FD_PIPE, FD_INODE } type;
+  int ref; // reference count
+  char readable;
+  char writable;
+  uint inum;
+  uint off;
+};
 
 int
 procfsisdir(struct inode *ip)
@@ -94,7 +112,16 @@ procfsread(struct inode *ip, char *dst, int off, int n)
     return procfsreadFdinfo(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_BLOCKSTAT){
     // 4. ip is the inode describing "/proc/PID/blockstat"
-    return procfsreadFdinfo(ip, dst, off, n);
+    return procfsreadBlockstat(ip, dst, off, n);
+  } else if((ip->inum & 0xF000) == T_PROC_INODESTAT){
+    // 5. ip is the inode describing "/proc/PID/inodestat"
+    return procfsreadInodestat(ip, dst, off, n);
+  } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO_FD){
+    // 6. ip is the inode describing "/proc/PID/fdinfo/FD"
+    return procfsreadFD(ip, dst, off, n);
+  } else if((ip->inum & 0xF000) == T_PROC_PID_STATUS){
+    // 7. ip is the inode describing "/proc/PID/status"
+    return procfsreadStatus(ip, dst, off, n);
   }
 
   cprintf("procfsread: DOING NOTHING\n"); //TODO: remove this!!!
@@ -181,6 +208,7 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
   struct dirent dirent;
   uint index, pindex;
   struct proc* p;
+  struct ptable* pt;
 
   if(off == 0){
       index = 0;
@@ -197,11 +225,13 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
       strncpy(dirent.name, PARENTDIR_STR, sizeof(PARENTDIR_STR));
       break;
     case PROC_PID_CWD:
-      // dirent.inum =  (ip->inum & 0xFF) | T_PROC_PID_CWD;
+      // dirent.inum =  (ip->inum & 0xFF) | T_PROC_PID_CWD; //TODO: SHOULD WE REMOVE THIS?
       pindex = ip->inum & 0xFF;
-      p = getPtable()->proc + pindex;
+      pt = getPtable();
+      acquire(&pt->lock);
+      p = pt->proc + pindex;
       dirent.inum = p->cwd->inum;
-      // cprintf("@@@@@@@ dirent.inum: %x p->name: %s\n", dirent.inum, p->name);
+      release(&pt->lock);
       strncpy(dirent.name, PROC_PID_CWD_STR , sizeof(PROC_PID_CWD_STR));
       break;
     case PROC_PID_FDINFO:
@@ -213,7 +243,6 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
       strncpy(dirent.name, PROC_PID_STATUS_STR , sizeof(PROC_PID_STATUS_STR));
       break;
     default:
-    // panic("procfsreadPid: no dirent matching the requested offset!");
       return 0;
   }
   memmove(dst, &dirent , n);
@@ -272,6 +301,17 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
 int
 procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
 {
+  uint total_blocks = NBUF;
+  uint free_blocks = countFreeBlocks();
+  
+  //TODO: put  requested data sits into buffer.
+
+  return trimBufferAndSend(buffer, bytes_read, dst, off, n);
+}
+
+int
+procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
+{
   char buffer[BSIZE];
   int bytes_read = 0;
 
@@ -280,22 +320,67 @@ procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
   return trimBufferAndSend(buffer, bytes_read, dst, off, n);
 }
 
+int
+procfsreadFD(struct inode *ip, char *dst, int off, int n)
+{
+  uint pindex, pfdindex;
+  struct proc* p;
+  struct ptable* pt;
+  struct file* fd;
+  struct fd* pfd;
+
+  pindex = ip->inum & 0xFF0;
+  pfdindex = ip->inum & 0xF;
+
+  pt = getPtable();
+  acquire(&pt->lock);
+    p = pt->proc + pindex;
+    fd = p->ofile + pfdindex;
+    pfd->type = fd->type;
+    pfd->ref = fd->ref;
+    pfd->readable = fd->readable;
+    pfd->writable = fd->writeable;
+    pfd->inum = fd->inode->inum;
+    pfd->off = fd->off;
+  release(&pt->lock);
+
+  return trimBufferAndSend(pfd, sizeof(struct fd), dst, off, n);
+}
+
+int
+procfsreadStatus(struct inode *ip, char *dst, int off, int n)
+{
+  uint pindex;
+  struct proc* p;
+  struct ptable* pt;
+  struct status* pstatus;
+
+  pindex = ip->inum & 0xFF;
+
+  pt = getPtable();
+  acquire(&pt->lock);
+    p = pt->proc + pindex;
+    pstatus->state = p->state;
+    pstatus->size = p->sz;
+  release(&pt->lock);
+  return trimBufferAndSend(pstatus, sizeof(struct status), dst, off, n);
+}
 
 //end of procfsread cases:
 
 // This function makes sure we write only the requested data to the buffer (between offset and n)
 //and return the correct number of written bytes
 int
-trimBufferAndSend(char buf[BSIZE], int bytes_read, char *dst, int off, int n)
+trimBufferAndSend(void* buf, int bytes_read, char *dst, int off, int n)
 {
   int bytes_to_send = 0;
   if (off < bytes_read) {
     bytes_to_send = bytes_read - off;
     if (bytes_to_send < n) {
-      memmove(dst,buf+off,bytes_to_send);
+      memmove(dst,(char*)buf+off,bytes_to_send);
       return bytes_read;
     }
-    memmove(dst,buf+off,n);
+    memmove(dst,(char*)buf+off,n);
     return n;
   }
   return 0;

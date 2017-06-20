@@ -141,3 +141,11 @@ brelse(struct buf *b)
 }
 //PAGEBREAK!
 // Blank page.
+
+// This function returns the number of free-blocks in the block cache
+uint
+countFreeBlocks()
+{
+  //TODO: implement this
+  return 0;
+}

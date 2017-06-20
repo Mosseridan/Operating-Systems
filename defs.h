@@ -15,6 +15,7 @@ void            binit(void);
 struct buf*     bread(uint, uint);
 void            brelse(struct buf*);
 void            bwrite(struct buf*);
+uint            countFreeBlocks();
 
 // console.c
 void            consoleinit(void);
@@ -119,7 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-struct ptable*  getPtable(); 
+struct ptable*  getPtable();
 
 // procfs.c
 void 			procfsinit(void);
