@@ -19,7 +19,8 @@
 #define PROC_PID_FDINFO    3
 #define PROC_PID_STATUS    4
 
-#define PROC_FIRSTPID      4
+#define PROC_FIRSTPID          4
+#define PROC_PID_FIRSTFD       2
 
 #define CURRENTDIR_STR       "."
 #define PARENTDIR_STR        ".."
@@ -45,8 +46,8 @@
 int procfsreadProc(struct inode *ip, char *dst, int off, int n);
 int procfsreadPid(struct inode *ip, char *dst, int off, int n);
 int procfsreadFdinfo(struct inode *ip, char *dst, int off, int n);
-int pidToString(int pid, char *str);
-void intToString(int n, int len, char *str);
+int intToString(int pid, char *str);
+void buildIntString(int n, int len, char *str);
 int strcmp(const char *p, const char *q);
 
 struct ptable{
@@ -121,12 +122,10 @@ procfsinit(void)
 int
 procfsreadProc(struct inode *ip, char *dst, int off, int n)
 {
-  // cprintf("!!!!! offset: %d\n",off);
-
   struct proc* p;
   struct ptable* pt;
   struct dirent dirent;
-  uint index, i, countProcs;
+  uint index, i, count_procs;
 
   if(off == 0){
       index = 0;
@@ -151,14 +150,13 @@ procfsreadProc(struct inode *ip, char *dst, int off, int n)
       strncpy(dirent.name, PROC_INODESTAT_STR, sizeof(PROC_INODESTAT_STR));
       break;
     default:
-      countProcs = PROC_FIRSTPID;
+      count_procs = PROC_FIRSTPID;
       pt = getPtable();
       acquire(&pt->lock);
       for(i = 0 ; i<NPROC; i++){
         p = pt->proc + i;
-        // cprintf("@@@@@@@@@ i: %d index: %d countProcs: %d pid: %d name: %s\n", i, index, countProcs, p->pid, p->name);
-        if(p->state != UNUSED && p->state != ZOMBIE && index == countProcs++){
-          if(pidToString(p->pid, dirent.name) == -1)
+        if(p->state != UNUSED && p->state != ZOMBIE && index == count_procs++){
+          if(intToString(p->pid, dirent.name) == -1)
             panic("procfsread: pid exceeds the max number of digits");
           dirent.inum = i | T_PROC_PID;
           break;
@@ -239,17 +237,17 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
     default:
       proc_num = ip->inum & 0xFF;
       pt = getPtable();
+      count_fds = PROC_PID_FIRSTFD;
       acquire(&pt->lock);
       p = pt->proc + proc_num;
+
       if(p->state == ZOMBIE || p->state == UNUSED)
         panic("procfsreadFdinfo: trying to fread fdinfo from an unused process");
       for(fd = 0; fd<NOFILE; fd++){
-        // cprintf("@@@@@@@@@ i: %d index: %d countProcs: %d pid: %d name: %s\n", i, index, countProcs, p->pid, p->name);
         if(p->ofile[fd] && index == count_fds++){
-          if(pidToString(fd, dirent.name) == -1)
+          if(intToString(fd, dirent.name) == -1)
             panic("procfsread: pid exceeds the max number of digits");
           dirent.inum = ((ip->inum & 0xFF) << PROC_NUM_SHIFT) | fd | T_PROC_PID_FDINFO_FD;
-          //dirent.inum |= (fd | T_PROC_PID_FDINFO_FD);
           break;
         }
       }
@@ -265,7 +263,7 @@ return n;
 //end of procfsread cases:
 
 int
-pidToString(int pid, char *str)
+intToString(int pid, char *str)
 {
   int temp, len;
 	temp = pid;
@@ -278,12 +276,12 @@ pidToString(int pid, char *str)
     cprintf("pidToString: Directory name should not exceed %d characters but this PID exceeds %d digits", DIRSIZ, DIRSIZ);
     return -1;
   }
-  intToString(pid, len, str);
+  buildIntString(pid, len, str);
   return 0;
 }
 
 void
-intToString(int n, int len, char *str)
+buildIntString(int n, int len, char *str)
 {
   int i;
 	for (i = len; i > 0; i--){
