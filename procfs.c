@@ -175,7 +175,8 @@ int
 procfsreadPid(struct inode *ip, char *dst, int off, int n)
 {
   struct dirent dirent;
-  uint index;
+  uint index, pindex;
+  struct proc* p;
 
   if(off == 0){
       index = 0;
@@ -192,7 +193,11 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
       strncpy(dirent.name, PARENTDIR_STR, sizeof(PARENTDIR_STR));
       break;
     case PROC_PID_CWD:
-      dirent.inum =  (ip->inum & 0xFF) | T_PROC_PID_CWD;
+      // dirent.inum =  (ip->inum & 0xFF) | T_PROC_PID_CWD;
+      pindex = ip->inum & 0xFF;
+      p = getPtable()->proc + pindex;
+      dirent.inum = p->cwd->inum;
+      // cprintf("@@@@@@@ dirent.inum: %x p->name: %s\n", dirent.inum, p->name);
       strncpy(dirent.name, PROC_PID_CWD_STR , sizeof(PROC_PID_CWD_STR));
       break;
     case PROC_PID_FDINFO:

@@ -7,6 +7,20 @@
 #include "proc.h"
 #include "spinlock.h"
 
+// struct inode { //TODO: remove this!
+//   uint dev;           // Device number
+//   uint inum;          // Inode number
+//   int ref;            // Reference count
+//   int flags;          // I_BUSY, I_VALID
+//
+//   short type;         // copy of disk inode
+//   short major;
+//   short minor;
+//   short nlink;
+//   uint size;
+//   uint addrs[13];
+// };
+
 struct ptable{
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -177,6 +191,8 @@ exit(void)
 
   if(proc == initproc)
     panic("init exiting");
+
+  // procdump(); //TODO: remove this!
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -454,6 +470,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
+      // cprintf("%d %s \n\nproc name: %s inum: %x \n\n", p->pid, state, p->name, p->cwd->inum); //TODO: remove this!
     cprintf("%d %s %s", p->pid, state, p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
