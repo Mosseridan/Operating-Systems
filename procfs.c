@@ -46,6 +46,7 @@
 int procfsreadProc(struct inode *ip, char *dst, int off, int n);
 int procfsreadPid(struct inode *ip, char *dst, int off, int n);
 int procfsreadFdinfo(struct inode *ip, char *dst, int off, int n);
+int trimBufferAndSend(char buf[BSIZE], int bytes_read, char *dst, int off, int n);
 int intToString(int pid, char *str);
 void buildIntString(int n, int len, char *str);
 int strcmp(const char *p, const char *q);
@@ -90,6 +91,9 @@ procfsread(struct inode *ip, char *dst, int off, int n)
       return procfsreadPid(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO){
     // 3. ip is the inode describing "/proc/PID/fdinfo"
+    return procfsreadFdinfo(ip, dst, off, n);
+  } else if((ip->inum & 0xF000) == T_PROC_BLOCKSTAT){
+    // 4. ip is the inode describing "/proc/PID/blockstat"
     return procfsreadFdinfo(ip, dst, off, n);
   }
 
@@ -261,17 +265,47 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
         return 0;
   }
   memmove(dst, &dirent , n);
-return n;
+  return n;
+}
+
+
+int
+procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
+{
+  char buffer[BSIZE];
+  int bytes_read = 0;
+
+  //TODO: findout where the requested data sits and write it into buffer.
+
+  return trimBufferAndSend(buffer, bytes_read, dst, off, n);
 }
 
 
 //end of procfsread cases:
 
+// This function makes sure we write only the requested data to the buffer (between offset and n)
+//and return the correct number of written bytes
 int
-intToString(int pid, char *str)
+trimBufferAndSend(char buf[BSIZE], int bytes_read, char *dst, int off, int n)
 {
-  int temp, len;
-	temp = pid;
+  int bytes_to_send = 0;
+  if (off < bytes_read) {
+    bytes_to_send = bytes_read - off;
+    if (bytes_to_send < n) {
+      memmove(dst,buf+off,bytes_to_send);
+      return bytes_read;
+    }
+    memmove(dst,buf+off,n);
+    return n;
+  }
+  return 0;
+}
+
+int
+intToString(int num, char *str)
+{
+  int temp, len, i;
+	temp = num;
 	len = 1;
 	while (temp/10!=0){
 		len++;
@@ -281,20 +315,26 @@ intToString(int pid, char *str)
     cprintf("pidToString: Directory name should not exceed %d characters but this PID exceeds %d digits", DIRSIZ, DIRSIZ);
     return -1;
   }
-  buildIntString(pid, len, str);
-  return 0;
-}
-
-void
-buildIntString(int n, int len, char *str)
-{
-  int i;
 	for (i = len; i > 0; i--){
 		str[i-1] = (n%10)+48;
 		n/=10;
 	}
 	str[len]='\0';
+
+  // buildIntString(pid, len, str);
+  return 0;
 }
+
+// void //TODO: remove this - combined into previous function
+// buildIntString(int n, int len, char *str)
+// {
+//   int i;
+// 	for (i = len; i > 0; i--){
+// 		str[i-1] = (n%10)+48;
+// 		n/=10;
+// 	}
+// 	str[len]='\0';
+// }
 
 int
 strcmp(const char *p, const char *q)
