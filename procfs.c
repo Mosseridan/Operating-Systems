@@ -316,44 +316,33 @@ int
 procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
 {
   char buffer[BSIZE];
-  struct inodestat inodestat;
-  getInodestat(&inodestat);
-
-  char free_inodes[3];
-  char valid_inodes[3];
-  char refs_per_inode[16];
-
-  int free_inodes_length = intToString(inodestat.free, free_inodes);
-  int valid_inodes_length = intToString(inodestat.valid, valid_inodes);
-
-  int refs_per_inode_length = intToString(inodestat.refs, refs_per_inode);
-  strncpy(refs_per_inode+refs_per_inode_length, " / ", 3);
-  refs_per_inode_length += 3;
-  refs_per_inode_length += intToString(inodestat.used, refs_per_inode + refs_per_inode_length);
-
-  strncpy(buffer, "Free Inodes: ", 14);
-  strncpy(buffer+strlen(buffer), free_inodes, free_inodes_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Valid Inodes: ", 15);
-  strncpy(buffer+strlen(buffer), valid_inodes, valid_inodes_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Refs Per Inode: ", 17);
-  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-
-
   struct blockstat blockstat;
   getBlockstat(&blockstat);
-  return trimBufferAndSend(&blockstat, (uint)sizeof(blockstat), dst, off, n);
+
+  char free_blocks[11];
+  char total_blocks[11];
+  char hit_ratio[24];
+
+  int free_blocks_length = intToString(blockstat.free_blocks, free_blocks);
+  int total_blocks_length = intToString(blockstat.total_blocks, total_blocks);
+
+  int hit_ratio_length = intToString(blockstat.num_of_hits, hit_ratio);
+  strncpy(hit_ratio+hit_ratio_length, " / ", 3);
+  hit_ratio_length += 3;
+  hit_ratio_length += intToString(blockstat.num_of_access, hit_ratio + hit_ratio_length);
+
+  strncpy(buffer, "Free Blocks: ", 14);
+  strncpy(buffer+strlen(buffer), free_blocks, free_blocks_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Total Blocks: ", 15);
+  strncpy(buffer+strlen(buffer), total_blocks, total_blocks_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Hit Ratio: ", 12);
+  strncpy(buffer+strlen(buffer), hit_ratio, hit_ratio_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+
+  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
-
-// struct blockstat {
-//   uint total_blocks;
-//   uint free_blocks;
-//   uint num_of_access;
-//   uint num_of_hits;
-// };
-
 
 int
 procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
@@ -381,7 +370,7 @@ procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
   strncpy(buffer+strlen(buffer), valid_inodes, valid_inodes_length+1);
   strncpy(buffer+strlen(buffer), "\n", 2);
   strncpy(buffer+strlen(buffer), "Refs Per Inode: ", 17);
-  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length);
+  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length+1);
   strncpy(buffer+strlen(buffer), "\n", 2);
 
   return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);

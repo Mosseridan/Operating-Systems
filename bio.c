@@ -169,18 +169,3 @@ getBlockstat(struct blockstat* blockstat)
     blockstat->num_of_hits = (bcache.baccessed - bcache.bmiss);
   release(&bcache.lock);
 }
-
-//TODO: remove this function
-// uint
-// countFreeBlocks()
-// {
-//   struct buf *b;
-//   uint n_free_blocks = 0;
-//   acquire(&bcache.lock);
-//
-//   for(b = bcache.head.next; b != &bcache.head; b = b->next)
-//     if(!(b->flags & B_BUSY))
-//       n_free_blocks++;
-//
-//   return n_free_blocks;
-// }
