@@ -87,7 +87,8 @@ int procfsreadFD(struct inode *ip, char *dst, int off, int n);
 int procfsreadInodestat(struct inode *ip, char *dst, int off, int n);
 int procfsreadStatus(struct inode *ip, char *dst, int off, int n);
 int trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n);
-int intToString(int pid, char *str);
+int intToString(int num, char *str);
+int uintToString(uint num, char *str);
 void buildIntString(int n, int len, char *str);
 int strcmp(const char *p, const char *q);
 
@@ -381,19 +382,12 @@ procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
 //   uint size;
 // };
 //
-// struct fd {
-//   uint type;
-//   int ref; // reference count
-//   char readable;
-//   char writable;
-//   uint inum;
-//   uint off;
-// };
-//
+
 
 int
 procfsreadFD(struct inode *ip, char *dst, int off, int n)
 {
+  char buffer[BSIZE];
   uint pindex, pfdindex;
   struct proc* p;
   struct ptable* pt;
@@ -408,14 +402,74 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
     p = pt->proc + pindex;
     fd = p->ofile[pfdindex];
     pfd.type = fd->type;
-    pfd.ref = fd->ref;
+    cprintf("\n### ref: %d\n\n", fd->ref);
+    if(fd->ref < 0) pfd.ref = 0;
+    else pfd.ref = fd->ref;
     pfd.readable = fd->readable;
     pfd.writable = fd->writable;
-    pfd.inum = fd->ip->inum;
+    //TODO: ADD INODE NUMBER!!!
+    cprintf("\n#### ip: %x\n\n", fd->ip);
+    // if(fd->ip && fd->ip->inum) pfd.inum = fd->ip->inum;
+    // else pfd.inum = -1;
     pfd.off = fd->off;
   release(&pt->lock);
-  return trimBufferAndSend(&pfd, sizeof(pfd), dst, off, n);
+
+
+  char fdType[9];
+  char fdRef[11];
+  char fdFlags[3];
+  // char inum[11];
+  char fdOff[11];
+
+  int fdType_length = uintToString(pfd.type, fdType);
+  if(pfd.ref < 0) pfd.ref = 0;
+  int fdRef_length = uintToString(pfd.ref, fdRef);
+  int fdFlags_length = 0;
+  // int inum_length = intToString(pfd.inum, inum);
+  int fdOff_length = uintToString(pfd.off, fdOff);
+
+  if(pfd.readable && pfd.writable){
+    strncpy(fdFlags, "rw", 3);
+    fdFlags_length = 3;
+  }
+  else if(pfd.readable){
+    strncpy(fdFlags, "r", 2);
+    fdFlags_length = 2;
+  }
+  else if(pfd.writable){
+    strncpy(fdFlags, "w", 2);
+    fdFlags_length = 2;
+  }
+
+  strncpy(buffer, "Type: ", 7);
+  strncpy(buffer+strlen(buffer), fdType, fdType_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Offset: ", 8);
+  strncpy(buffer+strlen(buffer), fdOff, fdOff_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Flags: ", 8);
+  strncpy(buffer+strlen(buffer), fdFlags, fdFlags_length);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Ref: ", 6);
+  strncpy(buffer+strlen(buffer), fdRef, fdRef_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+
+  //TODO: ADD INODE NUMBER!!!
+
+  // struct fd {
+  //   uint type;
+  //   int ref; // reference count
+  //   char readable;
+  //   char writable;
+  //   uint inum;
+  //   uint off;
+  // };
+  //
+
+  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
+
+
 
 int
 procfsreadStatus(struct inode *ip, char *dst, int off, int n)
@@ -478,6 +532,31 @@ intToString(int num, char *str)
 
   return len;
 }
+
+int
+uintToString(uint num, char *str)
+{
+  uint temp, i;
+  int len;
+	temp = num;
+	len = 1;
+	while (temp/10!=0){
+		len++;
+		temp /= 10;
+	}
+  if(len > DIRSIZ){
+    cprintf("pidToString: Directory name should not exceed %d characters but this PID exceeds %d digits", DIRSIZ, DIRSIZ);
+    return -1;
+  }
+	for (i = len; i > 0; i--){
+		str[i-1] = (num%10)+48;
+		num/=10;
+	}
+	str[len]='\0';
+
+  return len;
+}
+
 
 int
 strcmp(const char *p, const char *q)
