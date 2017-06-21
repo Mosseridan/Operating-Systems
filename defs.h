@@ -9,13 +9,15 @@ struct spinlock;
 struct stat;
 struct superblock;
 struct ptable;
+struct blockstat;
+struct inodestat;
 
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
 void            brelse(struct buf*);
 void            bwrite(struct buf*);
-uint            countFreeBlocks();
+void            getBlockstat(struct blockstat*);
 
 // console.c
 void            consoleinit(void);
@@ -53,6 +55,8 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+void            getInodestat(struct inodestat*);
+
 
 // ide.c
 void            ideinit(void);

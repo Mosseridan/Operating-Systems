@@ -26,10 +26,19 @@
 #include "spinlock.h"
 #include "buf.h"
 
+struct blockstat {
+  uint total_blocks;
+  uint free_blocks;
+  uint num_of_access;
+  uint num_of_hits;
+};
+
 struct {
   struct spinlock lock;
   struct buf buf[NBUF];
-
+  uint bfree;
+  uint baccessed; // Total number of times this buffer was read from
+  uint bmiss; // Number of times this buffer was read from while B_VALID flag is off
   // Linked list of all buffers, through prev/next.
   // head.next is most recently used.
   struct buf head;
@@ -41,6 +50,9 @@ binit(void)
   struct buf *b;
 
   initlock(&bcache.lock, "bcache");
+  bcache.bfree=NBUF; // Initialize bfree to be all the existing buffers in the system.
+  bcache.baccessed = 0; // Initialize accessed to 0
+  bcache.bmiss = 0; // Initialize miss to 0
 
 //PAGEBREAK!
   // Create linked list of buffers
@@ -71,6 +83,7 @@ bget(uint dev, uint sector)
     if(b->dev == dev && b->sector == sector){
       if(!(b->flags & B_BUSY)){
         b->flags |= B_BUSY;
+        bcache.bfree--;
         release(&bcache.lock);
         return b;
       }
@@ -87,6 +100,7 @@ bget(uint dev, uint sector)
       b->dev = dev;
       b->sector = sector;
       b->flags = B_BUSY;
+      bcache.bfree--;
       release(&bcache.lock);
       return b;
     }
@@ -99,11 +113,12 @@ struct buf*
 bread(uint dev, uint sector)
 {
   struct buf *b;
-  //TODO: increase the count for the total block access
   b = bget(dev, sector);
-  if(!(b->flags & B_VALID))
+  bcache.baccessed++;
+  if(!(b->flags & B_VALID)){
+    bcache.bmiss++;
     iderw(b);
-  //TODO: increase the count for the count hits/miss (can increase the miss and then total-miss=hits)
+  }
   return b;
 }
 
@@ -135,6 +150,7 @@ brelse(struct buf *b)
   bcache.head.next = b;
 
   b->flags &= ~B_BUSY;
+  bcache.bfree++;
   wakeup(b);
 
   release(&bcache.lock);
@@ -142,10 +158,29 @@ brelse(struct buf *b)
 //PAGEBREAK!
 // Blank page.
 
-// This function returns the number of free-blocks in the block cache
-uint
-countFreeBlocks()
+// This function takes a struct blockstat as an argument and returns an updated blockstat with all the current data.
+void
+getBlockstat(struct blockstat* blockstat)
 {
-  //TODO: implement this
-  return 0;
+  acquire(&bcache.lock);
+    blockstat->total_blocks = NBUF;
+    blockstat->free_blocks = bcache.bfree;
+    blockstat->num_of_access = bcache.baccessed;
+    blockstat->num_of_hits = (bcache.baccessed - bcache.bmiss);
+  release(&bcache.lock);
 }
+
+//TODO: remove this function
+// uint
+// countFreeBlocks()
+// {
+//   struct buf *b;
+//   uint n_free_blocks = 0;
+//   acquire(&bcache.lock);
+//
+//   for(b = bcache.head.next; b != &bcache.head; b = b->next)
+//     if(!(b->flags & B_BUSY))
+//       n_free_blocks++;
+//
+//   return n_free_blocks;
+// }

@@ -7,20 +7,6 @@
 #include "proc.h"
 #include "spinlock.h"
 
-// struct inode { //TODO: remove this!
-//   uint dev;           // Device number
-//   uint inum;          // Inode number
-//   int ref;            // Reference count
-//   int flags;          // I_BUSY, I_VALID
-//
-//   short type;         // copy of disk inode
-//   short major;
-//   short minor;
-//   short nlink;
-//   uint size;
-//   uint addrs[13];
-// };
-
 struct ptable{
   struct spinlock lock;
   struct proc proc[NPROC];

@@ -23,6 +23,14 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
 
+struct inodestat {
+  ushort total;
+  ushort free;
+  ushort valid;
+  uint refs;
+  ushort used;
+};
+
 // Read the super block.
 void
 readsb(int dev, struct superblock *sb)
@@ -323,8 +331,6 @@ iput(struct inode *ip)
   acquire(&icache.lock);
   if(ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0){
     // inode has no links and no other references: truncate and free.
-
-    //TODO: increase the free inodes counter
 
     if(ip->flags & I_BUSY)
       panic("iput busy");
@@ -664,4 +670,27 @@ struct inode*
 nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
+}
+
+
+/**********************************************/
+/**************Auxilary Functions**************/
+/**********************************************/
+
+// This function takes a struct inodestat as an argument and returns an updated inodestat with all the current data.
+void
+getInodestat(struct inodestat* inodestat)
+{
+  struct inode* ip;
+  inodestat->total = NINODE;
+  inodestat->free = 0;
+  inodestat->valid = 0;
+
+  acquire(&icache.lock);
+  for(ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++){
+    if(ip->ref > 0) inodestat->refs+= ip->ref; else inodestat->free++;
+    if(ip->flags & I_VALID) inodestat->valid++;
+  }
+  release(&icache.lock);
+  inodestat->used = inodestat->total - inodestat->free;
 }

@@ -11,6 +11,7 @@
 #include "proc.h"
 #include "x86.h"
 
+
 #define CURRENTDIR         0
 #define PARENTDIR          1
 #define PROC_BLOCKSTAT     2
@@ -43,18 +44,6 @@
 
 // #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 
-int procfsreadProc(struct inode *ip, char *dst, int off, int n);
-int procfsreadPid(struct inode *ip, char *dst, int off, int n);
-int procfsreadFdinfo(struct inode *ip, char *dst, int off, int n);
-int procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
-int procfsreadFD(struct inode *ip, char *dst, int off, int n)
-int procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
-int procfsreadStatus(struct inode *ip, char *dst, int off, int n)
-int trimBufferAndSend(char buf[BSIZE], int bytes_read, char *dst, int off, int n);
-int intToString(int pid, char *str);
-void buildIntString(int n, int len, char *str);
-int strcmp(const char *p, const char *q);
-
 struct ptable{
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -65,15 +54,43 @@ struct status{
   uint size;
 };
 
-
 struct fd {
-  enum { FD_NONE, FD_PIPE, FD_INODE } type;
+  uint type;
   int ref; // reference count
   char readable;
   char writable;
   uint inum;
   uint off;
 };
+
+struct blockstat {
+  uint total_blocks;
+  uint free_blocks;
+  uint num_of_access;
+  uint num_of_hits;
+};
+
+struct inodestat {
+  ushort total;
+  ushort free;
+  ushort valid;
+  uint refs;
+  ushort used;
+};
+
+
+int procfsreadProc(struct inode *ip, char *dst, int off, int n);
+int procfsreadPid(struct inode *ip, char *dst, int off, int n);
+int procfsreadFdinfo(struct inode *ip, char *dst, int off, int n);
+int procfsreadBlockstat(struct inode *ip, char *dst, int off, int n);
+int procfsreadFD(struct inode *ip, char *dst, int off, int n);
+int procfsreadInodestat(struct inode *ip, char *dst, int off, int n);
+int procfsreadStatus(struct inode *ip, char *dst, int off, int n);
+int trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n);
+int intToString(int pid, char *str);
+void buildIntString(int n, int len, char *str);
+int strcmp(const char *p, const char *q);
+
 
 int
 procfsisdir(struct inode *ip)
@@ -201,7 +218,6 @@ procfsreadProc(struct inode *ip, char *dst, int off, int n)
   return n;
 }
 
-
 int
 procfsreadPid(struct inode *ip, char *dst, int off, int n)
 {
@@ -248,7 +264,6 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
   memmove(dst, &dirent , n);
   return n;
 }
-
 
 int
 procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
@@ -297,28 +312,95 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
   return n;
 }
 
-
 int
 procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
 {
-  uint total_blocks = NBUF;
-  uint free_blocks = countFreeBlocks();
-  
-  //TODO: put  requested data sits into buffer.
+  char buffer[BSIZE];
+  struct inodestat inodestat;
+  getInodestat(&inodestat);
 
-  return trimBufferAndSend(buffer, bytes_read, dst, off, n);
+  char free_inodes[3];
+  char valid_inodes[3];
+  char refs_per_inode[16];
+
+  int free_inodes_length = intToString(inodestat.free, free_inodes);
+  int valid_inodes_length = intToString(inodestat.valid, valid_inodes);
+
+  int refs_per_inode_length = intToString(inodestat.refs, refs_per_inode);
+  strncpy(refs_per_inode+refs_per_inode_length, " / ", 3);
+  refs_per_inode_length += 3;
+  refs_per_inode_length += intToString(inodestat.used, refs_per_inode + refs_per_inode_length);
+
+  strncpy(buffer, "Free Inodes: ", 14);
+  strncpy(buffer+strlen(buffer), free_inodes, free_inodes_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Valid Inodes: ", 15);
+  strncpy(buffer+strlen(buffer), valid_inodes, valid_inodes_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Refs Per Inode: ", 17);
+  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+
+
+  struct blockstat blockstat;
+  getBlockstat(&blockstat);
+  return trimBufferAndSend(&blockstat, (uint)sizeof(blockstat), dst, off, n);
 }
+
+// struct blockstat {
+//   uint total_blocks;
+//   uint free_blocks;
+//   uint num_of_access;
+//   uint num_of_hits;
+// };
+
 
 int
 procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
 {
   char buffer[BSIZE];
-  int bytes_read = 0;
+  struct inodestat inodestat;
+  getInodestat(&inodestat);
 
-  //TODO: findout where the requested data sits and write it into buffer.
+  char free_inodes[3];
+  char valid_inodes[3];
+  char refs_per_inode[16];
 
-  return trimBufferAndSend(buffer, bytes_read, dst, off, n);
+  int free_inodes_length = intToString(inodestat.free, free_inodes);
+  int valid_inodes_length = intToString(inodestat.valid, valid_inodes);
+
+  int refs_per_inode_length = intToString(inodestat.refs, refs_per_inode);
+  strncpy(refs_per_inode+refs_per_inode_length, " / ", 3);
+  refs_per_inode_length += 3;
+  refs_per_inode_length += intToString(inodestat.used, refs_per_inode + refs_per_inode_length);
+
+  strncpy(buffer, "Free Inodes: ", 14);
+  strncpy(buffer+strlen(buffer), free_inodes, free_inodes_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Valid Inodes: ", 15);
+  strncpy(buffer+strlen(buffer), valid_inodes, valid_inodes_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Refs Per Inode: ", 17);
+  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+
+  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
+
+// struct status{
+//   enum procstate state;
+//   uint size;
+// };
+//
+// struct fd {
+//   uint type;
+//   int ref; // reference count
+//   char readable;
+//   char writable;
+//   uint inum;
+//   uint off;
+// };
+//
 
 int
 procfsreadFD(struct inode *ip, char *dst, int off, int n)
@@ -327,7 +409,7 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
   struct proc* p;
   struct ptable* pt;
   struct file* fd;
-  struct fd* pfd;
+  struct fd pfd;
 
   pindex = ip->inum & 0xFF0;
   pfdindex = ip->inum & 0xF;
@@ -335,16 +417,15 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
   pt = getPtable();
   acquire(&pt->lock);
     p = pt->proc + pindex;
-    fd = p->ofile + pfdindex;
-    pfd->type = fd->type;
-    pfd->ref = fd->ref;
-    pfd->readable = fd->readable;
-    pfd->writable = fd->writeable;
-    pfd->inum = fd->inode->inum;
-    pfd->off = fd->off;
+    fd = p->ofile[pfdindex];
+    pfd.type = fd->type;
+    pfd.ref = fd->ref;
+    pfd.readable = fd->readable;
+    pfd.writable = fd->writable;
+    pfd.inum = fd->ip->inum;
+    pfd.off = fd->off;
   release(&pt->lock);
-
-  return trimBufferAndSend(pfd, sizeof(struct fd), dst, off, n);
+  return trimBufferAndSend(&pfd, sizeof(pfd), dst, off, n);
 }
 
 int
@@ -353,17 +434,17 @@ procfsreadStatus(struct inode *ip, char *dst, int off, int n)
   uint pindex;
   struct proc* p;
   struct ptable* pt;
-  struct status* pstatus;
+  struct status pstatus;
 
   pindex = ip->inum & 0xFF;
 
   pt = getPtable();
   acquire(&pt->lock);
     p = pt->proc + pindex;
-    pstatus->state = p->state;
-    pstatus->size = p->sz;
+    pstatus.state = p->state;
+    pstatus.size = p->sz;
   release(&pt->lock);
-  return trimBufferAndSend(pstatus, sizeof(struct status), dst, off, n);
+  return trimBufferAndSend(&pstatus, sizeof(pstatus), dst, off, n);
 }
 
 //end of procfsread cases:
@@ -371,7 +452,7 @@ procfsreadStatus(struct inode *ip, char *dst, int off, int n)
 // This function makes sure we write only the requested data to the buffer (between offset and n)
 //and return the correct number of written bytes
 int
-trimBufferAndSend(void* buf, int bytes_read, char *dst, int off, int n)
+trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n)
 {
   int bytes_to_send = 0;
   if (off < bytes_read) {
@@ -401,25 +482,13 @@ intToString(int num, char *str)
     return -1;
   }
 	for (i = len; i > 0; i--){
-		str[i-1] = (n%10)+48;
-		n/=10;
+		str[i-1] = (num%10)+48;
+		num/=10;
 	}
 	str[len]='\0';
 
-  // buildIntString(pid, len, str);
-  return 0;
+  return len;
 }
-
-// void //TODO: remove this - combined into previous function
-// buildIntString(int n, int len, char *str)
-// {
-//   int i;
-// 	for (i = len; i > 0; i--){
-// 		str[i-1] = (n%10)+48;
-// 		n/=10;
-// 	}
-// 	str[len]='\0';
-// }
 
 int
 strcmp(const char *p, const char *q)
