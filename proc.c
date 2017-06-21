@@ -178,8 +178,6 @@ exit(void)
   if(proc == initproc)
     panic("init exiting");
 
-  // procdump(); //TODO: remove this!
-
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(proc->ofile[fd]){
@@ -456,7 +454,6 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-      // cprintf("%d %s \n\nproc name: %s inum: %x \n\n", p->pid, state, p->name, p->cwd->inum); //TODO: remove this!
     cprintf("%d %s %s", p->pid, state, p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);

@@ -121,28 +121,35 @@ procfsread(struct inode *ip, char *dst, int off, int n)
 {
 	if (namei("proc")->inum ==  ip->inum){
     // 1. ip is the inode describing "/proc"
+    // cprintf("#T_PROC\n");
       return procfsreadProc(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID){
     // 2. ip is the inode describing "/proc/PID"
+    // cprintf("#T_PROC_PID\n");
       return procfsreadPid(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO){
     // 3. ip is the inode describing "/proc/PID/fdinfo"
+    // cprintf("#T_PROC_PID_FDINFO\n");
     return procfsreadFdinfo(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_BLOCKSTAT){
     // 4. ip is the inode describing "/proc/PID/blockstat"
+    // cprintf("#T_PROC_PID_BLOCKSTAT\n");
     return procfsreadBlockstat(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_INODESTAT){
     // 5. ip is the inode describing "/proc/PID/inodestat"
+    // cprintf("#T_PROC_PID_INODESTAT\n");
     return procfsreadInodestat(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO_FD){
     // 6. ip is the inode describing "/proc/PID/fdinfo/FD"
+    // cprintf("#T_PROC_PID_FDINFO_FD\n");
     return procfsreadFD(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_STATUS){
     // 7. ip is the inode describing "/proc/PID/status"
+    // cprintf("#T_PROC_PID_STATUS\n");
     return procfsreadStatus(ip, dst, off, n);
   }
 
-  cprintf("procfsread: DOING NOTHING\n"); //TODO: remove this!!!
+  panic("procfsread: NO CASE WAS FOUND!\n");
   return 0;
 }
 
@@ -242,7 +249,6 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
       strncpy(dirent.name, PARENTDIR_STR, sizeof(PARENTDIR_STR));
       break;
     case PROC_PID_CWD:
-      // dirent.inum =  (ip->inum & 0xFF) | T_PROC_PID_CWD; //TODO: SHOULD WE REMOVE THIS?
       pindex = ip->inum & 0xFF;
       pt = getPtable();
       acquire(&pt->lock);
@@ -377,13 +383,6 @@ procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
   return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
 
-// struct status{
-//   enum procstate state;
-//   uint size;
-// };
-//
-
-
 int
 procfsreadFD(struct inode *ip, char *dst, int off, int n)
 {
@@ -402,30 +401,27 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
     p = pt->proc + pindex;
     fd = p->ofile[pfdindex];
     pfd.type = fd->type;
-    cprintf("\n### ref: %d\n\n", fd->ref);
-    if(fd->ref < 0) pfd.ref = 0;
-    else pfd.ref = fd->ref;
+    pfd.ref = fd->ref;
     pfd.readable = fd->readable;
     pfd.writable = fd->writable;
-    //TODO: ADD INODE NUMBER!!!
-    cprintf("\n#### ip: %x\n\n", fd->ip);
-    // if(fd->ip && fd->ip->inum) pfd.inum = fd->ip->inum;
-    // else pfd.inum = -1;
+    if(fd->type == FD_INODE)
+      pfd.inum = fd->ip->inum;
     pfd.off = fd->off;
   release(&pt->lock);
 
-
-  char fdType[9];
-  char fdRef[11];
-  char fdFlags[3];
-  // char inum[11];
-  char fdOff[11];
+  char fdType[10];
+  char fdRef[12];
+  char fdFlags[4];
+  char fdInum[12];
+  char fdOff[12];
 
   int fdType_length = uintToString(pfd.type, fdType);
   if(pfd.ref < 0) pfd.ref = 0;
-  int fdRef_length = uintToString(pfd.ref, fdRef);
+  int fdRef_length = intToString(pfd.ref, fdRef);
   int fdFlags_length = 0;
-  // int inum_length = intToString(pfd.inum, inum);
+  int fdInum_length = 0;
+  if(pfd.type == FD_INODE)
+    fdInum_length = uintToString(pfd.inum, fdInum);
   int fdOff_length = uintToString(pfd.off, fdOff);
 
   if(pfd.readable && pfd.writable){
@@ -444,40 +440,42 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
   strncpy(buffer, "Type: ", 7);
   strncpy(buffer+strlen(buffer), fdType, fdType_length+1);
   strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Offset: ", 8);
+  strncpy(buffer+strlen(buffer), "Offset: ", 9);
   strncpy(buffer+strlen(buffer), fdOff, fdOff_length+1);
   strncpy(buffer+strlen(buffer), "\n", 2);
   strncpy(buffer+strlen(buffer), "Flags: ", 8);
   strncpy(buffer+strlen(buffer), fdFlags, fdFlags_length);
   strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Inum: ", 7);
+  if(pfd.type == FD_INODE){
+    strncpy(buffer+strlen(buffer), fdInum, fdInum_length+1);
+    strncpy(buffer+strlen(buffer), "\n", 2);
+  } else{
+    strncpy(buffer+strlen(buffer), "No Inum - Not FD_INODE\n", 24);
+  }
   strncpy(buffer+strlen(buffer), "Ref: ", 6);
   strncpy(buffer+strlen(buffer), fdRef, fdRef_length+1);
   strncpy(buffer+strlen(buffer), "\n", 2);
 
-  //TODO: ADD INODE NUMBER!!!
-
-  // struct fd {
-  //   uint type;
-  //   int ref; // reference count
-  //   char readable;
-  //   char writable;
-  //   uint inum;
-  //   uint off;
-  // };
-  //
-
   return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
-
-
 
 int
 procfsreadStatus(struct inode *ip, char *dst, int off, int n)
 {
+  char buffer[BSIZE];
   uint pindex;
   struct proc* p;
   struct ptable* pt;
   struct status pstatus;
+  static char *states[] = {
+    [UNUSED]    "unused",
+    [EMBRYO]    "embryo",
+    [SLEEPING]  "sleep ",
+    [RUNNABLE]  "runble",
+    [RUNNING]   "run   ",
+    [ZOMBIE]    "zombie"
+  };
 
   pindex = ip->inum & 0xFF;
 
@@ -487,7 +485,18 @@ procfsreadStatus(struct inode *ip, char *dst, int off, int n)
     pstatus.state = p->state;
     pstatus.size = p->sz;
   release(&pt->lock);
-  return trimBufferAndSend(&pstatus, sizeof(pstatus), dst, off, n);
+
+  char proc_size[11];
+  int proc_size_length = intToString(pstatus.size, proc_size);
+
+  strncpy(buffer, "Process State: ", 16);
+  strncpy(buffer+strlen(buffer), states[pstatus.state], strlen(states[pstatus.state])+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+  strncpy(buffer+strlen(buffer), "Process Size: ", 15);
+  strncpy(buffer+strlen(buffer), proc_size, proc_size_length+1);
+  strncpy(buffer+strlen(buffer), "\n", 2);
+
+  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
 }
 
 //end of procfsread cases:
@@ -502,7 +511,8 @@ trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n)
     bytes_to_send = bytes_read - off;
     if (bytes_to_send < n) {
       memmove(dst,(char*)buf+off,bytes_to_send);
-      return bytes_read;
+      // return bytes_read;
+      return n;
     }
     memmove(dst,(char*)buf+off,n);
     return n;

@@ -72,7 +72,6 @@ balloc(uint dev)
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
-        //TODO: DECREASE THE FREE BLOCKS COUNTER
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
