@@ -44,7 +44,7 @@ printLsofPID(struct dirent* de)
 {
   char path[MAXPATHLEN];
   char *p;
-  int fd,i;
+  int fd,i,r;
   struct fdData fdData;
   char* file_types[]= { "FD_NONE", "FD_PIPE", "FD_INODE" };
 
@@ -61,9 +61,12 @@ printLsofPID(struct dirent* de)
     if((fd = open(path, 0)) < 0){
       continue;
     }
-    read(fd, &fdData, sizeof(fdData));
+
+    if((r = read(fd, &fdData, sizeof(fdData))) < sizeof(fdData))
+      printf(1,"### read only %d bytes from fd %d path %s\n\n",r, i, path);
 
     printf(1,"name: %s fd num: %d refs: %d inum: %d type: %s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
+
     close(fd);
   }
 }

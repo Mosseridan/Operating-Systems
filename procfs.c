@@ -79,7 +79,6 @@ int procfsreadInodestat(struct inode *ip, char *dst, int off, int n);
 int procfsreadStatus(struct inode *ip, char *dst, int off, int n);
 int trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n);
 int intToString(int num, char *str);
-int uintToString(uint num, char *str);
 void buildIntString(int n, int len, char *str);
 int strcmp(const char *p, const char *q);
 
@@ -111,38 +110,30 @@ procfsread(struct inode *ip, char *dst, int off, int n)
 {
 	if (namei("proc")->inum ==  ip->inum){
     // 1. ip is the inode describing "/proc"
-    // cprintf("#T_PROC\n");
       return procfsreadProc(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID){
     // 2. ip is the inode describing "/proc/PID"
-    // cprintf("#T_PROC_PID\n");
       return procfsreadPid(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO){
     // 3. ip is the inode describing "/proc/PID/fdinfo"
-    // cprintf("#T_PROC_PID_FDINFO\n");
     return procfsreadFdinfo(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_BLOCKSTAT){
     // 4. ip is the inode describing "/proc/PID/blockstat"
-    // cprintf("#T_PROC_PID_BLOCKSTAT\n");
     return procfsreadBlockstat(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_INODESTAT){
     // 5. ip is the inode describing "/proc/PID/inodestat"
-    // cprintf("#T_PROC_PID_INODESTAT\n");
     return procfsreadInodestat(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_FDINFO_FD){
     // 6. ip is the inode describing "/proc/PID/fdinfo/FD"
-    // cprintf("#T_PROC_PID_FDINFO_FD\n");
     return procfsreadFD(ip, dst, off, n);
   } else if((ip->inum & 0xF000) == T_PROC_PID_STATUS){
     // 7. ip is the inode describing "/proc/PID/status"
-    // cprintf("#T_PROC_PID_STATUS\n");
     return procfsreadStatus(ip, dst, off, n);
   }
 
   panic("procfsread: NO CASE WAS FOUND!\n");
   return 0;
 }
-
 
 int
 procfswrite(struct inode *ip, char *buf, int n)
@@ -286,7 +277,6 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
       break;
     case PARENTDIR:
       dirent.inum = (ip->inum & 0xFF) | T_PROC_PID;
-      // cprintf("\n#### procfsreadFdinfo: parent dir inum %x pid %d\n\n", dirent.inum, ip->inum&0xFF);//TODO: REMOVE THIS!!!
       strncpy(dirent.name, PARENTDIR_STR, sizeof(PARENTDIR_STR));
       break;
     default:
@@ -304,7 +294,6 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
           if(intToString(fd, dirent.name) == -1)
             panic("procfsread: pid exceeds the max number of digits");
           dirent.inum = ((ip->inum & 0xFF) << PROC_NUM_SHIFT) | fd | T_PROC_PID_FDINFO_FD;
-          // cprintf("\n#### procfsreadFdinfo: fd %d inum %x pid %d\n\n", fd, dirent.inum, ip->inum&0xFF);//TODO: REMOVE THIS!!!
           break;
         }
       }
@@ -341,7 +330,7 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
   struct file* fd;
   struct fd pfd;
 
-  pindex = ip->inum & 0xFF0;
+  pindex = (ip->inum&0x0FF0) >> PROC_NUM_SHIFT;
   pfdindex = ip->inum & 0xF;
 
   pt = getPtable();
@@ -351,6 +340,7 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
       release(&pt->lock);
       return 0;
     }
+
     fd = p->ofile[pfdindex];
     pfd.type = fd->type;
     pfd.ref = fd->ref;
@@ -420,31 +410,6 @@ intToString(int num, char *str)
 
   return len;
 }
-
-int
-uintToString(uint num, char *str)
-{
-  uint temp, i;
-  int len;
-	temp = num;
-	len = 1;
-	while (temp/10!=0){
-		len++;
-		temp /= 10;
-	}
-  if(len > DIRSIZ){
-    cprintf("pidToString: Directory name should not exceed %d characters but this PID exceeds %d digits", DIRSIZ, DIRSIZ);
-    return -1;
-  }
-	for (i = len; i > 0; i--){
-		str[i-1] = (num%10)+48;
-		num/=10;
-	}
-	str[len]='\0';
-
-  return len;
-}
-
 
 int
 strcmp(const char *p, const char *q)
