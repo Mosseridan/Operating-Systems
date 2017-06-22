@@ -44,7 +44,7 @@ printLsofPID(struct dirent* de)
 {
   char path[MAXPATHLEN];
   char *p;
-  int fd,i,r;
+  int fd,i;
   struct fdData fdData;
   char* file_types[]= { "FD_NONE", "FD_PIPE", "FD_INODE" };
 
@@ -62,8 +62,7 @@ printLsofPID(struct dirent* de)
       continue;
     }
 
-    if((r = read(fd, &fdData, sizeof(fdData))) < sizeof(fdData))
-      printf(1,"### read only %d bytes from fd %d path %s\n\n",r, i, path);
+    read(fd, &fdData, sizeof(fdData));
 
     printf(1,"name: %s fd num: %d refs: %d inum: %d type: %s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
 
@@ -77,7 +76,6 @@ main(int argc, char *argv[])
 {
   struct dirent de;
   int fdproc, i;
-  int temp;
 
   if((fdproc = open("proc", 0)) < 0){
     printf(1, "lsof: cannot open proc\n");
@@ -88,7 +86,7 @@ main(int argc, char *argv[])
     read(fdproc, &de, sizeof(de));
   }
 
-  while((temp = read(fdproc, &de, sizeof(de))) == sizeof(de)){
+  while(read(fdproc, &de, sizeof(de)) == sizeof(de)){
     if(de.inum == 0)
       continue;
     printLsofPID(&de);
