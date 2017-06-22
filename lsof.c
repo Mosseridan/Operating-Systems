@@ -64,7 +64,7 @@ printLsofPID(struct dirent* de)
 
     read(fd, &fdData, sizeof(fdData));
 
-    printf(1,"name: %s fd num: %d refs: %d inum: %d type: %s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
+    printf(1,"%s\t%d\t%d\t%d\t%s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
 
     close(fd);
   }
