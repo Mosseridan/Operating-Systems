@@ -52,3 +52,10 @@ struct dirent {
   ushort inum;
   char name[DIRSIZ];
 };
+
+#define T_PROC_BLOCKSTAT     0x1000
+#define T_PROC_INODESTAT     0x2000
+#define T_PROC_PID           0x3000
+#define T_PROC_PID_FDINFO    0x4000
+#define T_PROC_PID_STATUS    0x5000
+#define T_PROC_PID_FDINFO_FD 0x6000

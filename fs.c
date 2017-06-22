@@ -231,14 +231,28 @@ static struct inode*
 iget(uint dev, uint inum)
 {
   struct inode *ip, *empty;
+  // int ourInode = 0;
+  //
+  // // If it's our inode raise a flag
+  // switch(inum && 0xF000){
+  //   case T_PROC_BLOCKSTAT:
+  //   case T_PROC_INODESTAT:
+  //   case T_PROC_PID:
+  //   case T_PROC_PID_FDINFO:
+  //   case T_PROC_PID_STATUS:
+  //   case T_PROC_PID_FDINFO_FD:
+  //     ourInode = 1;
+  //     break;
+  // }
 
   acquire(&icache.lock);
-
   // Is the inode already cached?
   empty = 0;
   for(ip = &icache.inode[0]; ip < &icache.inode[NINODE]; ip++){
     if(ip->ref > 0 && ip->dev == dev && ip->inum == inum){
       ip->ref++;
+      // if(ourInode) // if it's our inode we want it to be recached
+      //   ip->flags &= ~I_VALID;
       release(&icache.lock);
       return ip;
     }
@@ -328,6 +342,7 @@ void
 iput(struct inode *ip)
 {
   acquire(&icache.lock);
+  // cprintf("\niput: ip->inum %d\n\n", ip->inum); //TODO: REMOVE THIS!!!
   if(ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0){
     // inode has no links and no other references: truncate and free.
 

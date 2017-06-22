@@ -44,33 +44,26 @@ printLsofPID(struct dirent* de)
 {
   char path[MAXPATHLEN];
   char *p;
-  int fd;
+  int fd,i;
   struct fdData fdData;
   char* file_types[]= { "FD_NONE", "FD_PIPE", "FD_INODE" };
 
-  strcpy(path, "proc/");
+  strcpy(path, "/proc/");
   p = path + strlen(path);
   strcpy(p, de->name);
   p = path + strlen(path);
   strcpy(p, "/fdinfo/");
   p = path + strlen(path);
 
-  for(int i=0; i<NOFILE; i++){
+  for(i=0; i<NOFILE; i++){
     intToString(i, p);
 
     if((fd = open(path, 0)) < 0){
       continue;
     }
     read(fd, &fdData, sizeof(fdData));
-    printf(1,"%s %d %d %d %s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
 
-    fdData.type=0;
-    fdData.ref=0;
-    fdData.readable=0;
-    fdData.writable=0;
-    fdData.inum=0;
-    fdData.off=0;
-
+    printf(1,"name: %s fd num: %d refs: %d inum: %d type: %s\n", de->name, i, fdData.ref, fdData.inum, file_types[fdData.type]);
     close(fd);
   }
 }
@@ -79,20 +72,20 @@ printLsofPID(struct dirent* de)
 int
 main(int argc, char *argv[])
 {
-  
   struct dirent de;
-  int fdproc;
+  int fdproc, i;
+  int temp;
 
   if((fdproc = open("proc", 0)) < 0){
     printf(1, "lsof: cannot open proc\n");
     return -1;
   }
 
-  for(int i=0; i<4; i++){ //Reading the first irelevent dirents
+  for(i=0; i<4; i++){ //Reading the first irelevent dirents
     read(fdproc, &de, sizeof(de));
   }
 
-  while(read(fdproc, &de, sizeof(de)) == sizeof(de)){
+  while((temp = read(fdproc, &de, sizeof(de))) == sizeof(de)){
     if(de.inum == 0)
       continue;
     printLsofPID(&de);

@@ -31,15 +31,6 @@
 #define PROC_PID_FDINFO_STR  "fdinfo"
 #define PROC_PID_STATUS_STR  "status"
 
-#define T_PROC               0x1000
-#define T_PROC_BLOCKSTAT     0x2000
-#define T_PROC_INODESTAT     0x3000
-#define T_PROC_PID           0x4000
-#define T_PROC_PID_CWD       0x5000
-#define T_PROC_PID_FDINFO    0x6000
-#define T_PROC_PID_STATUS    0x7000
-#define T_PROC_PID_FDINFO_FD 0x8000
-
 #define PROC_NUM_SHIFT    0x4
 
 // #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
@@ -111,7 +102,6 @@ procfsiread(struct inode* dp, struct inode *ip)
   if(ip->inum < MAX_DINODES) // If inum < MAX_DINODES it means that this is a regular system inode (the data is on the physical disk)
     return; // Return and call ilock to get the data from the disk
   ip->type = T_DEV; // All of our direcetories are devices with minor=T_DIR (because we need them to use procnfsiread before ilock)
-  ip->ref = 1;
   ip->major = PROCFS;
   ip->flags |= I_VALID; // To prevent ilock from trying to read data from the disk (because there is no data on the disk!)
 }
@@ -296,6 +286,7 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
       break;
     case PARENTDIR:
       dirent.inum = (ip->inum & 0xFF) | T_PROC_PID;
+      // cprintf("\n#### procfsreadFdinfo: parent dir inum %x pid %d\n\n", dirent.inum, ip->inum&0xFF);//TODO: REMOVE THIS!!!
       strncpy(dirent.name, PARENTDIR_STR, sizeof(PARENTDIR_STR));
       break;
     default:
@@ -313,6 +304,7 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
           if(intToString(fd, dirent.name) == -1)
             panic("procfsread: pid exceeds the max number of digits");
           dirent.inum = ((ip->inum & 0xFF) << PROC_NUM_SHIFT) | fd | T_PROC_PID_FDINFO_FD;
+          // cprintf("\n#### procfsreadFdinfo: fd %d inum %x pid %d\n\n", fd, dirent.inum, ip->inum&0xFF);//TODO: REMOVE THIS!!!
           break;
         }
       }
@@ -327,7 +319,6 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
 int
 procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
 {
-
   struct blockstat blockstat;
   getBlockstat(&blockstat);
   return trimBufferAndSend(&blockstat, sizeof(blockstat), dst, off, n);
@@ -399,8 +390,7 @@ trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n)
     bytes_to_send = bytes_read - off;
     if (bytes_to_send < n) {
       memmove(dst,(char*)buf+off,bytes_to_send);
-      // return bytes_read;
-      return n;
+      return bytes_read;
     }
     memmove(dst,(char*)buf+off,n);
     return n;
