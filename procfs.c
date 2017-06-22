@@ -253,6 +253,10 @@ procfsreadPid(struct inode *ip, char *dst, int off, int n)
       pt = getPtable();
       acquire(&pt->lock);
       p = pt->proc + pindex;
+      if(p->state == UNUSED || p->state == ZOMBIE){
+        release(&pt->lock);
+        return 0;
+      }
       dirent.inum = p->cwd->inum;
       release(&pt->lock);
       strncpy(dirent.name, PROC_PID_CWD_STR , sizeof(PROC_PID_CWD_STR));
@@ -300,11 +304,12 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
       count_fds = PROC_PID_FIRSTFD;
       acquire(&pt->lock);
       p = pt->proc + proc_num;
-
-      if(p->state == ZOMBIE || p->state == UNUSED)
-        panic("procfsreadFdinfo: trying to fread fdinfo from an unused process");
+      if(p->state == UNUSED || p->state == ZOMBIE){
+        release(&pt->lock);
+        return 0;
+      }
       for(fd = 0; fd<NOFILE; fd++){
-        if(p->ofile[fd] && index == count_fds++){
+        if(p->ofile[fd] && p->ofile[fd]->type==FD_INODE && index == count_fds++){
           if(intToString(fd, dirent.name) == -1)
             panic("procfsread: pid exceeds the max number of digits");
           dirent.inum = ((ip->inum & 0xFF) << PROC_NUM_SHIFT) | fd | T_PROC_PID_FDINFO_FD;
@@ -322,71 +327,23 @@ procfsreadFdinfo(struct inode *ip, char *dst, int off, int n)
 int
 procfsreadBlockstat(struct inode *ip, char *dst, int off, int n)
 {
-  char buffer[BSIZE];
+
   struct blockstat blockstat;
   getBlockstat(&blockstat);
-
-  char free_blocks[11];
-  char total_blocks[11];
-  char hit_ratio[24];
-
-  int free_blocks_length = intToString(blockstat.free_blocks, free_blocks);
-  int total_blocks_length = intToString(blockstat.total_blocks, total_blocks);
-
-  int hit_ratio_length = intToString(blockstat.num_of_hits, hit_ratio);
-  strncpy(hit_ratio+hit_ratio_length, " / ", 3);
-  hit_ratio_length += 3;
-  hit_ratio_length += intToString(blockstat.num_of_access, hit_ratio + hit_ratio_length);
-
-  strncpy(buffer, "Free Blocks: ", 14);
-  strncpy(buffer+strlen(buffer), free_blocks, free_blocks_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Total Blocks: ", 15);
-  strncpy(buffer+strlen(buffer), total_blocks, total_blocks_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Hit Ratio: ", 12);
-  strncpy(buffer+strlen(buffer), hit_ratio, hit_ratio_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-
-  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
+  return trimBufferAndSend(&blockstat, sizeof(blockstat), dst, off, n);
 }
 
 int
 procfsreadInodestat(struct inode *ip, char *dst, int off, int n)
 {
-  char buffer[BSIZE];
   struct inodestat inodestat;
   getInodestat(&inodestat);
-
-  char free_inodes[3];
-  char valid_inodes[3];
-  char refs_per_inode[16];
-
-  int free_inodes_length = intToString(inodestat.free, free_inodes);
-  int valid_inodes_length = intToString(inodestat.valid, valid_inodes);
-
-  int refs_per_inode_length = intToString(inodestat.refs, refs_per_inode);
-  strncpy(refs_per_inode+refs_per_inode_length, " / ", 3);
-  refs_per_inode_length += 3;
-  refs_per_inode_length += intToString(inodestat.used, refs_per_inode + refs_per_inode_length);
-
-  strncpy(buffer, "Free Inodes: ", 14);
-  strncpy(buffer+strlen(buffer), free_inodes, free_inodes_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Valid Inodes: ", 15);
-  strncpy(buffer+strlen(buffer), valid_inodes, valid_inodes_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Refs Per Inode: ", 17);
-  strncpy(buffer+strlen(buffer), refs_per_inode, refs_per_inode_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-
-  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
+  return trimBufferAndSend(&inodestat, sizeof(inodestat), dst, off, n);
 }
 
 int
 procfsreadFD(struct inode *ip, char *dst, int off, int n)
 {
-  char buffer[BSIZE];
   uint pindex, pfdindex;
   struct proc* p;
   struct ptable* pt;
@@ -399,6 +356,10 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
   pt = getPtable();
   acquire(&pt->lock);
     p = pt->proc + pindex;
+    if(p->state == UNUSED || p->state == ZOMBIE){
+      release(&pt->lock);
+      return 0;
+    }
     fd = p->ofile[pfdindex];
     pfd.type = fd->type;
     pfd.ref = fd->ref;
@@ -408,74 +369,16 @@ procfsreadFD(struct inode *ip, char *dst, int off, int n)
       pfd.inum = fd->ip->inum;
     pfd.off = fd->off;
   release(&pt->lock);
-
-  char fdType[10];
-  char fdRef[12];
-  char fdFlags[4];
-  char fdInum[12];
-  char fdOff[12];
-
-  int fdType_length = uintToString(pfd.type, fdType);
-  if(pfd.ref < 0) pfd.ref = 0;
-  int fdRef_length = intToString(pfd.ref, fdRef);
-  int fdFlags_length = 0;
-  int fdInum_length = 0;
-  if(pfd.type == FD_INODE)
-    fdInum_length = uintToString(pfd.inum, fdInum);
-  int fdOff_length = uintToString(pfd.off, fdOff);
-
-  if(pfd.readable && pfd.writable){
-    strncpy(fdFlags, "rw", 3);
-    fdFlags_length = 3;
-  }
-  else if(pfd.readable){
-    strncpy(fdFlags, "r", 2);
-    fdFlags_length = 2;
-  }
-  else if(pfd.writable){
-    strncpy(fdFlags, "w", 2);
-    fdFlags_length = 2;
-  }
-
-  strncpy(buffer, "Type: ", 7);
-  strncpy(buffer+strlen(buffer), fdType, fdType_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Offset: ", 9);
-  strncpy(buffer+strlen(buffer), fdOff, fdOff_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Flags: ", 8);
-  strncpy(buffer+strlen(buffer), fdFlags, fdFlags_length);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Inum: ", 7);
-  if(pfd.type == FD_INODE){
-    strncpy(buffer+strlen(buffer), fdInum, fdInum_length+1);
-    strncpy(buffer+strlen(buffer), "\n", 2);
-  } else{
-    strncpy(buffer+strlen(buffer), "No Inum - Not FD_INODE\n", 24);
-  }
-  strncpy(buffer+strlen(buffer), "Ref: ", 6);
-  strncpy(buffer+strlen(buffer), fdRef, fdRef_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-
-  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
+  return trimBufferAndSend(&pfd, sizeof(pfd), dst, off, n);
 }
 
 int
 procfsreadStatus(struct inode *ip, char *dst, int off, int n)
 {
-  char buffer[BSIZE];
   uint pindex;
   struct proc* p;
   struct ptable* pt;
   struct status pstatus;
-  static char *states[] = {
-    [UNUSED]    "unused",
-    [EMBRYO]    "embryo",
-    [SLEEPING]  "sleep ",
-    [RUNNABLE]  "runble",
-    [RUNNING]   "run   ",
-    [ZOMBIE]    "zombie"
-  };
 
   pindex = ip->inum & 0xFF;
 
@@ -485,24 +388,9 @@ procfsreadStatus(struct inode *ip, char *dst, int off, int n)
     pstatus.state = p->state;
     pstatus.size = p->sz;
   release(&pt->lock);
-
-  char proc_size[11];
-  int proc_size_length = intToString(pstatus.size, proc_size);
-
-  strncpy(buffer, "Process State: ", 16);
-  strncpy(buffer+strlen(buffer), states[pstatus.state], strlen(states[pstatus.state])+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-  strncpy(buffer+strlen(buffer), "Process Size: ", 15);
-  strncpy(buffer+strlen(buffer), proc_size, proc_size_length+1);
-  strncpy(buffer+strlen(buffer), "\n", 2);
-
-  return trimBufferAndSend(buffer, strlen(buffer), dst, off, n);
+  return trimBufferAndSend(&pstatus, sizeof(pstatus), dst, off, n);
 }
 
-//end of procfsread cases:
-
-// This function makes sure we write only the requested data to the buffer (between offset and n)
-//and return the correct number of written bytes
 int
 trimBufferAndSend(void* buf, uint bytes_read, char *dst, int off, int n)
 {
